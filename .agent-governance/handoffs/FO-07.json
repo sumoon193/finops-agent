@@ -1,0 +1,54 @@
+{
+  "task_id": "FO-07",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-07-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "fa5b0ed8ed4054ccc0c254d1064e495db782be5b",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/query/budget/__init__.py",
+    "app/finops/query/budget/controller.py",
+    "tests/finops/query/test_budget_fo_07.py"
+  ],
+  "created_files": [
+    "app/finops/query/budget/__init__.py",
+    "app/finops/query/budget/controller.py",
+    "tests/finops/query/test_budget_fo_07.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/query/test_budget_fo_07.py -q",
+    "exit_code": 2,
+    "reason": "预算、超时与取消目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.query.budget'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/query/test_budget_fo_07.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "预算为静态估算对比，未接入真实成本估算器",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "超时使用可注入时钟，真实执行环境的租约/心跳取消语义由 FO-10 恢复模块覆盖",
+    "预算上限为单值，多级预算策略需主集成后扩展"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-07，随后激活 FO-08"
+  ]
+}
