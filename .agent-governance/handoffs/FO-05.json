@@ -1,0 +1,56 @@
+{
+  "task_id": "FO-05",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-05-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "b0dd7c7c93848b10623b0e8af1d2949a636b18a9",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/query/__init__.py",
+    "app/finops/query/ast/__init__.py",
+    "app/finops/query/ast/guard.py",
+    "tests/finops/query/test_ast_fo_05.py"
+  ],
+  "created_files": [
+    "app/finops/query/__init__.py",
+    "app/finops/query/ast/__init__.py",
+    "app/finops/query/ast/guard.py",
+    "tests/finops/query/test_ast_fo_05.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/query/test_ast_fo_05.py -q",
+    "exit_code": 2,
+    "reason": "AST 只读门禁目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.query'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/query/test_ast_fo_05.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "门禁为词法正则校验，未接真实 SQL 解析器 AST",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "正则门禁对复杂 SQL（子查询、CTE、注释绕过）覆盖有限，需主集成后由真实解析器加固",
+    "白名单资源匹配仅覆盖 FROM/JOIN 首层表，未覆盖 schema 限定名"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-05，随后激活 FO-06"
+  ]
+}
