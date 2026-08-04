@@ -1,0 +1,58 @@
+{
+  "task_id": "FO-04",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-04-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "037f023a4d138117ab9c86954c949282e9c3ad9d",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/catalog/__init__.py",
+    "app/finops/catalog/registry.py",
+    "app/finops/intent/__init__.py",
+    "app/finops/intent/model.py",
+    "tests/finops/intent/test_fo_04.py"
+  ],
+  "created_files": [
+    "app/finops/catalog/__init__.py",
+    "app/finops/catalog/registry.py",
+    "app/finops/intent/__init__.py",
+    "app/finops/intent/model.py",
+    "tests/finops/intent/test_fo_04.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/intent/test_fo_04.py -q",
+    "exit_code": 2,
+    "reason": "Intent、模型与语义目录目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.catalog'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/intent/test_fo_04.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "真实模型未接入，模型输出由固定fixture提供，外部模型默认禁用",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "Intent 种类集合由 SemanticCatalog 固定，真实模型意图映射需 FO-11 冻结评测覆盖",
+    "语义目录版本绑定为单版本校验，多版本并存由主集成后统一管理"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-04，随后激活 FO-05"
+  ]
+}
