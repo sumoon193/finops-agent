@@ -2,6 +2,7 @@
 import argparse
 import fnmatch
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -41,7 +42,7 @@ manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 if manifest.get("status") != "managed":
     blocked("project is not managed")
 
-branch = git("branch", "--show-current").strip()
+branch = git("branch", "--show-current").strip() or os.environ.get("GITHUB_HEAD_REF", "").strip()
 task_files = list((root / ".agent-governance" / "tasks").glob("*.json"))
 matching_tasks = []
 for task_file in task_files:
@@ -66,8 +67,24 @@ if re.fullmatch(r"[0-9a-f]{40}", base_sha) is None:
 if subprocess.run(["git", "cat-file", "-e", base_sha + "^{commit}"], cwd=root, capture_output=True).returncode != 0:
     blocked("task base_sha does not exist")
 
+activation_candidates = list(filter(None, git("rev-list", "--reverse", base_sha + "..HEAD").splitlines()))
+if not activation_candidates:
+    blocked("task activation commit missing")
+activation_commit = activation_candidates[0]
+activation_subject = git("show", "--format=%s", "--no-patch", activation_commit).strip()
+expected_subject = "chore(governance): activate " + str(task["task_id"])
+if activation_subject != expected_subject:
+    blocked("first commit after base must be task activation")
+task_relative = ".agent-governance/tasks/" + str(task["task_id"]) + ".json"
+activation_paths = set(filter(None, git("diff-tree", "--no-commit-id", "--name-only", "-r", activation_commit).splitlines()))
+if activation_paths != {task_relative}:
+    blocked("activation commit may only change its task packet")
+activation_task = git("show", activation_commit + ":" + task_relative)
+if activation_task != (root / task_relative).read_text(encoding="utf-8"):
+    blocked("task packet changed after activation")
+
 def changed_entries():
-    committed = set(filter(None, git("diff", "--name-only", base_sha + "..HEAD").splitlines()))
+    committed = set(filter(None, git("diff", "--name-only", activation_commit + "..HEAD").splitlines()))
     result = [("C ", path.replace("\\", "/")) for path in committed]
     allowed_untracked = manifest.get("allowed_untracked_paths", [])
     for status, path in status_entries():
@@ -87,7 +104,7 @@ elif args.gate == "branch-policy":
     expected = "codex/" + manifest["project_id"] + "/"
     if not branch.startswith(expected):
         blocked("branch policy violation")
-    if git("rev-list", "--min-parents=2", base_sha + "..HEAD").strip():
+    if git("rev-list", "--min-parents=2", activation_commit + "..HEAD").strip():
         blocked("merge commits after task base are forbidden")
 
 elif args.gate == "scope":
