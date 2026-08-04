@@ -1,0 +1,54 @@
+{
+  "task_id": "FO-08",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-08-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "726e36a998da63a98db9433f12a048d65fb21867",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/results/__init__.py",
+    "app/finops/results/store.py",
+    "tests/finops/results/test_fo_08.py"
+  ],
+  "created_files": [
+    "app/finops/results/__init__.py",
+    "app/finops/results/store.py",
+    "tests/finops/results/test_fo_08.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/results/test_fo_08.py -q",
+    "exit_code": 2,
+    "reason": "结果、缓存、审计与血缘目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.results'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/results/test_fo_08.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "缓存为进程内 dict，未接真实缓存服务",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "复合键含 tenant/语义/watermark，TOC/TOU 与并发失效语义需 FO-10 对账覆盖",
+    "血缘为扁平字符串，结构化 lineage 图由主集成后统一"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-08，随后激活 FO-09"
+  ]
+}
