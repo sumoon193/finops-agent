@@ -1,0 +1,54 @@
+{
+  "task_id": "FO-06",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-06-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "e67a09aa2914132a533431363905857d96c2651c",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/query/execution/__init__.py",
+    "app/finops/query/execution/planner.py",
+    "tests/finops/query/test_execution_fo_06.py"
+  ],
+  "created_files": [
+    "app/finops/query/execution/__init__.py",
+    "app/finops/query/execution/planner.py",
+    "tests/finops/query/test_execution_fo_06.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/query/test_execution_fo_06.py -q",
+    "exit_code": 2,
+    "reason": "只读查询、分页与状态目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.query.execution'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/query/test_execution_fo_06.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "真实数据库分页与 CAS 未在真实服务上验证，仅离线内存语义",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "keyset 分页以 (watermark, id) 排序假设，复合排序键需要 FO-08 血缘/缓存后统一",
+    "CAS 状态机为独立组件，与查询执行链路的状态由主集成后串联"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-06，随后激活 FO-07"
+  ]
+}
