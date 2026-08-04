@@ -1,0 +1,58 @@
+{
+  "task_id": "FO-09",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-09-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "2c2291958d79de232d20a0e6e1d72c695457791a",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/anomaly/__init__.py",
+    "app/finops/anomaly/attribution.py",
+    "app/finops/tickets/__init__.py",
+    "app/finops/tickets/service.py",
+    "tests/finops/tickets/test_fo_09.py"
+  ],
+  "created_files": [
+    "app/finops/anomaly/__init__.py",
+    "app/finops/anomaly/attribution.py",
+    "app/finops/tickets/__init__.py",
+    "app/finops/tickets/service.py",
+    "tests/finops/tickets/test_fo_09.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/tickets/test_fo_09.py -q",
+    "exit_code": 2,
+    "reason": "异常归因与 GovernanceTicket目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.anomaly'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/tickets/test_fo_09.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "审批流为布尔入参，未接真实审批服务/人工界面",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "工单幂等以进程内 dict 实现，真实持久化与 UNKNOWN 对账由 FO-10 覆盖",
+    "审批语义为单步布尔，多级审批工作流由主集成后扩展"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-09，随后激活 FO-10"
+  ]
+}
