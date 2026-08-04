@@ -6,13 +6,11 @@
   "commit_sha": "b0dd7c7c93848b10623b0e8af1d2949a636b18a9",
   "status": "pushed",
   "changed_files": [
-    "app/finops/query/__init__.py",
     "app/finops/query/ast/__init__.py",
     "app/finops/query/ast/guard.py",
     "tests/finops/query/test_ast_fo_05.py"
   ],
   "created_files": [
-    "app/finops/query/__init__.py",
     "app/finops/query/ast/__init__.py",
     "app/finops/query/ast/guard.py",
     "tests/finops/query/test_ast_fo_05.py"
