@@ -1,0 +1,58 @@
+{
+  "task_id": "FO-02",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-02-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "92876843655cbb82ce9dd44d6d7f5b7e058ad528",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/focus/__init__.py",
+    "app/finops/focus/canonical.py",
+    "app/finops/ingestion/__init__.py",
+    "app/finops/ingestion/adapter.py",
+    "tests/finops/focus/test_fo_02.py"
+  ],
+  "created_files": [
+    "app/finops/focus/__init__.py",
+    "app/finops/focus/canonical.py",
+    "app/finops/ingestion/__init__.py",
+    "app/finops/ingestion/adapter.py",
+    "tests/finops/focus/test_fo_02.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/focus/test_fo_02.py -q",
+    "exit_code": 2,
+    "reason": "FOCUS canonical 摄取目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.focus'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/focus/test_fo_02.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "真实云账单来源未连接，仅离线固定fixture，外部网络默认禁用",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "FOCUS 摄取仅覆盖固定fixture的currency/unit别名，更广的来源变体需 FO-12 adapter 替换演练覆盖",
+    "接口签名 QueryIntent.execute 仅声明未与其它模块串联，由主集成模型按依赖图集成"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-02，随后激活 FO-03"
+  ]
+}
