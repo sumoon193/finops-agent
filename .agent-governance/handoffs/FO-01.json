@@ -1,0 +1,56 @@
+{
+  "task_id": "FO-01",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-01-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "6108acf0332c0358fccfe1a92c90f349a1864af6",
+  "status": "pushed",
+  "changed_files": [
+    "docs/audit/license.md",
+    "docs/audit/scope.md",
+    "docs/audit/source-registry.json",
+    "tests/finops/audit/test_fo_01.py"
+  ],
+  "created_files": [
+    "docs/audit/license.md",
+    "docs/audit/scope.md",
+    "docs/audit/source-registry.json",
+    "tests/finops/audit/test_fo_01.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/audit/test_fo_01.py -q",
+    "exit_code": 1,
+    "reason": "来源、范围与许可证目标行为或入口尚未实现",
+    "summary": "4 failed：source-registry.json、scope.md、license.md 不存在，全部 FileNotFoundError"
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/audit/test_fo_01.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "远程云账单来源未验证，仅离线样例，registry 保持 pending",
+    "真实查询意图模型未接入，保持 blocked（Fake/Recorded 未连接）",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "FO-01 白名单仅含 docs/audit 与 tests/finops/audit，接口签名 IdentityContext.execute 仅声明未落地，由后续模块实现",
+    "云账单 FOCUS 导出的真实来源、货币与 watermark 语义需 FO-02 校验"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-01，随后激活 FO-02"
+  ]
+}
