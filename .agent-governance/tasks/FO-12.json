@@ -98,11 +98,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "回滚、演练与数据层替换目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/fo_12 -q",
+    "green_command": "python -m pytest tests/finops/release/test_fo_12.py -q",
     "implementation_boundary": "只实现使“语义/FOCUS/数据库adapter可回滚替换”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/fo_12 -q",
+    "red_command": "python -m pytest tests/finops/release/test_fo_12.py -q",
     "red_test_files": [
-      "tests/finops/fo_12"
+      "tests/finops/release/test_fo_12.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

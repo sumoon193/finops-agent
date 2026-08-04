@@ -98,11 +98,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "FOCUS canonical 摄取目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/fo_02 -q",
+    "green_command": "python -m pytest tests/finops/focus/test_fo_02.py -q",
     "implementation_boundary": "只实现使“账单规范化保留来源、货币、单位和watermark”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/fo_02 -q",
+    "red_command": "python -m pytest tests/finops/focus/test_fo_02.py -q",
     "red_test_files": [
-      "tests/finops/fo_02"
+      "tests/finops/focus/test_fo_02.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

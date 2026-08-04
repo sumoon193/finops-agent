@@ -98,11 +98,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "可观测、恢复与对账目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/fo_10 -q",
+    "green_command": "python -m pytest tests/finops/recovery/test_fo_10.py -q",
     "implementation_boundary": "只实现使“worker崩溃、查询取消和工单UNKNOWN可恢复”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/fo_10 -q",
+    "red_command": "python -m pytest tests/finops/recovery/test_fo_10.py -q",
     "red_test_files": [
-      "tests/finops/fo_10"
+      "tests/finops/recovery/test_fo_10.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

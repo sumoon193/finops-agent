@@ -98,11 +98,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "Intent、模型与语义目录目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/fo_04 -q",
+    "green_command": "python -m pytest tests/finops/intent/test_fo_04.py -q",
     "implementation_boundary": "只实现使“模型输出typed intent且绑定语义目录版本”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/fo_04 -q",
+    "red_command": "python -m pytest tests/finops/intent/test_fo_04.py -q",
     "red_test_files": [
-      "tests/finops/fo_04"
+      "tests/finops/intent/test_fo_04.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

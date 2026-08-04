@@ -94,11 +94,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "来源、范围与许可证目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/fo_01 -q",
+    "green_command": "python -m pytest tests/finops/audit/test_fo_01.py -q",
     "implementation_boundary": "只实现使“账单、目录和模型/数据来源可追溯”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/fo_01 -q",
+    "red_command": "python -m pytest tests/finops/audit/test_fo_01.py -q",
     "red_test_files": [
-      "tests/finops/fo_01"
+      "tests/finops/audit/test_fo_01.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

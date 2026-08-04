@@ -98,11 +98,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "异常归因与 GovernanceTicket目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/fo_09 -q",
+    "green_command": "python -m pytest tests/finops/tickets/test_fo_09.py -q",
     "implementation_boundary": "只实现使“异常finding只经审批创建幂等人工工单”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/fo_09 -q",
+    "red_command": "python -m pytest tests/finops/tickets/test_fo_09.py -q",
     "red_test_files": [
-      "tests/finops/fo_09"
+      "tests/finops/tickets/test_fo_09.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

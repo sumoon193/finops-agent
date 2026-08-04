@@ -96,11 +96,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "结果、缓存、审计与血缘目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/fo_08 -q",
+    "green_command": "python -m pytest tests/finops/results/test_fo_08.py -q",
     "implementation_boundary": "只实现使“缓存绑定RLS/语义/watermark且结果可追溯”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/fo_08 -q",
+    "red_command": "python -m pytest tests/finops/results/test_fo_08.py -q",
     "red_test_files": [
-      "tests/finops/fo_08"
+      "tests/finops/results/test_fo_08.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

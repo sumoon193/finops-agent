@@ -96,11 +96,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "只读查询、分页与状态目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/fo_06 -q",
+    "green_command": "python -m pytest tests/finops/query/test_fo_06.py -q",
     "implementation_boundary": "只实现使“查询使用参数化计划、稳定分页和CAS状态”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/fo_06 -q",
+    "red_command": "python -m pytest tests/finops/query/test_fo_06.py -q",
     "red_test_files": [
-      "tests/finops/fo_06"
+      "tests/finops/query/test_fo_06.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

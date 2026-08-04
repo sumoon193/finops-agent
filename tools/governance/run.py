@@ -93,6 +93,26 @@ def changed_entries():
         result.append((status, path))
     return sorted(set(result))
 
+changed = changed_entries()
+changed_paths = sorted({path for _, path in changed})
+if len(changed_paths) > int(task.get("max_changed_files", 0)):
+    blocked("max_changed_files exceeded")
+numstat = git("diff", "--numstat", activation_commit + "..HEAD")
+diff_lines = 0
+for line in numstat.splitlines():
+    additions, deletions, _ = line.split("\t", 2)
+    if additions.isdigit():
+        diff_lines += int(additions)
+    if deletions.isdigit():
+        diff_lines += int(deletions)
+for status, path in status_entries():
+    if status == "??" and not matches(path, manifest.get("allowed_untracked_paths", [])):
+        target = root / path
+        if target.is_file() and target.stat().st_size <= 1000000:
+            diff_lines += len(target.read_text(encoding="utf-8", errors="replace").splitlines())
+if diff_lines > int(task.get("max_diff_lines", 0)):
+    blocked("max_diff_lines exceeded")
+
 if args.gate == "task-packet":
     for field in ("task_id", "project_id", "branch", "base_sha", "scope", "tdd", "delivery"):
         if field not in task:
@@ -112,7 +132,7 @@ elif args.gate == "scope":
     allowed = scope.get("allowed_paths", []) + scope.get("allowed_create_paths", [])
     forbidden = scope.get("read_denylist", []) + scope.get("write_denylist", []) + manifest.get("protected_paths", [])
     governance_exempt = [".agent-governance/**", ".github/workflows/governance.yml", "tools/governance/**", "AGENTS.md"]
-    for status, path in changed_entries():
+    for status, path in changed:
         if matches(path, governance_exempt):
             continue
         if matches(path, forbidden):
@@ -122,7 +142,7 @@ elif args.gate == "scope":
 
 elif args.gate == "test-integrity":
     marker = re.compile(r"pytest\.mark\.(?:skip|xfail)|@unittest\.skip|\bskipTest\(")
-    for status, path in changed_entries():
+    for status, path in changed:
         if not (path.startswith("tests/") or "/test" in path):
             continue
         target = root / path
@@ -133,7 +153,7 @@ elif args.gate == "test-integrity":
 
 elif args.gate == "secrets":
     rules = (("GitHub token", re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}")), ("private key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")), ("credential assignment", re.compile(r"(?i)(?:api[_-]?key|secret|token|password)\s*=\s*['\"][^'\"]{12,}")))
-    for status, path in changed_entries():
+    for status, path in changed:
         if matches(path, manifest.get("allowed_untracked_paths", [])) and status == "??":
             continue
         if Path(path).name.startswith(".env"):
