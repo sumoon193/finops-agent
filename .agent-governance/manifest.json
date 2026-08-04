@@ -1,8 +1,9 @@
 {
   "allowed_untracked_paths": [],
-  "baseline_sha": "45850193e814e8cf65ae5d0e3436a427580e1c70",
+  "baseline_sha": "ac1f951984aad0806c1627bcfc746a98bf2f1cfb",
   "branch_prefix": "codex/",
   "default_branch": "main",
+  "generated_by": "central-agent-governance",
   "governance_version": "1.1.0",
   "integration_owner": "primary-integrator",
   "languages": [
