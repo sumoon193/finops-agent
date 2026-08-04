@@ -1,0 +1,56 @@
+{
+  "task_id": "FO-10",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-10-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "118bf36497a970278154497005fea5ebb36380fc",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/observability/__init__.py",
+    "app/finops/recovery/__init__.py",
+    "app/finops/recovery/ledger.py",
+    "tests/finops/recovery/test_fo_10.py"
+  ],
+  "created_files": [
+    "app/finops/observability/__init__.py",
+    "app/finops/recovery/__init__.py",
+    "app/finops/recovery/ledger.py",
+    "tests/finops/recovery/test_fo_10.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/recovery/test_fo_10.py -q",
+    "exit_code": 2,
+    "reason": "可观测、恢复与对账目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.recovery'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/recovery/test_fo_10.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "崩溃点为注入式恢复，未在真实 worker/队列上演练",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "恢复逻辑为同步单进程语义，真实分布式租约/Outbox 需 FO-12 演练覆盖",
+    "UNKNOWN 对账结果为 reconcile 回调返回，实际工单系统未连接"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-10，随后激活 FO-11"
+  ]
+}
