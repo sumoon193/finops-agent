@@ -17,7 +17,7 @@
         "query_run"
       ],
       "dependencies": [],
-      "failure_test": "tests/finops/fo_01",
+      "failure_test": "tests/finops/audit/test_fo_01.py",
       "interface_signatures": [
         "IdentityContext.execute(input: FO01Input) -> FO01Result"
       ],
@@ -51,7 +51,7 @@
       "dependencies": [
         "FO-01"
       ],
-      "failure_test": "tests/finops/fo_02",
+      "failure_test": "tests/finops/focus/test_fo_02.py",
       "interface_signatures": [
         "QueryIntent.execute(input: FO02Input) -> FO02Result"
       ],
@@ -86,7 +86,7 @@
       "dependencies": [
         "FO-02"
       ],
-      "failure_test": "tests/finops/fo_03",
+      "failure_test": "tests/finops/security/test_fo_03.py",
       "interface_signatures": [
         "AuthorizedQueryPlan.execute(input: FO03Input) -> FO03Result"
       ],
@@ -121,7 +121,7 @@
       "dependencies": [
         "FO-03"
       ],
-      "failure_test": "tests/finops/fo_04",
+      "failure_test": "tests/finops/intent/test_fo_04.py",
       "interface_signatures": [
         "IdentityContext.execute(input: FO04Input) -> FO04Result"
       ],
@@ -156,7 +156,7 @@
       "dependencies": [
         "FO-04"
       ],
-      "failure_test": "tests/finops/fo_05",
+      "failure_test": "tests/finops/query/test_ast_fo_05.py",
       "interface_signatures": [
         "QueryIntent.execute(input: FO05Input) -> FO05Result"
       ],
@@ -190,7 +190,7 @@
       "dependencies": [
         "FO-05"
       ],
-      "failure_test": "tests/finops/fo_06",
+      "failure_test": "tests/finops/query/test_execution_fo_06.py",
       "interface_signatures": [
         "AuthorizedQueryPlan.execute(input: FO06Input) -> FO06Result"
       ],
@@ -224,7 +224,7 @@
       "dependencies": [
         "FO-06"
       ],
-      "failure_test": "tests/finops/fo_07",
+      "failure_test": "tests/finops/query/test_budget_fo_07.py",
       "interface_signatures": [
         "IdentityContext.execute(input: FO07Input) -> FO07Result"
       ],
@@ -258,7 +258,7 @@
       "dependencies": [
         "FO-07"
       ],
-      "failure_test": "tests/finops/fo_08",
+      "failure_test": "tests/finops/results/test_fo_08.py",
       "interface_signatures": [
         "QueryIntent.execute(input: FO08Input) -> FO08Result"
       ],
@@ -292,7 +292,7 @@
       "dependencies": [
         "FO-08"
       ],
-      "failure_test": "tests/finops/fo_09",
+      "failure_test": "tests/finops/tickets/test_fo_09.py",
       "interface_signatures": [
         "AuthorizedQueryPlan.execute(input: FO09Input) -> FO09Result"
       ],
@@ -327,7 +327,7 @@
       "dependencies": [
         "FO-09"
       ],
-      "failure_test": "tests/finops/fo_10",
+      "failure_test": "tests/finops/recovery/test_fo_10.py",
       "interface_signatures": [
         "IdentityContext.execute(input: FO10Input) -> FO10Result"
       ],
@@ -362,7 +362,7 @@
       "dependencies": [
         "FO-10"
       ],
-      "failure_test": "tests/finops/fo_11",
+      "failure_test": "tests/finops/eval/test_fo_11.py",
       "interface_signatures": [
         "QueryIntent.execute(input: FO11Input) -> FO11Result"
       ],
@@ -396,7 +396,7 @@
       "dependencies": [
         "FO-11"
       ],
-      "failure_test": "tests/finops/fo_12",
+      "failure_test": "tests/finops/release/test_fo_12.py",
       "interface_signatures": [
         "AuthorizedQueryPlan.execute(input: FO12Input) -> FO12Result"
       ],
@@ -431,7 +431,7 @@
       "dependencies": [
         "FO-12"
       ],
-      "failure_test": "tests/finops/fo_13",
+      "failure_test": "tests/finops/ablation/test_fo_13.py",
       "interface_signatures": [
         "IdentityContext.execute(input: FO13Input) -> FO13Result"
       ],

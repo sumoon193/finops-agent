@@ -39,7 +39,7 @@
 - 数据表：`query_run`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_01`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/audit/test_fo_01.py`，失败原因只能是目标行为未实现。
 - 可观察结果：账单、目录和模型/数据来源可追溯。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -52,7 +52,7 @@
 - 数据表：`result_artifact`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_02`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/focus/test_fo_02.py`，失败原因只能是目标行为未实现。
 - 可观察结果：账单规范化保留来源、货币、单位和watermark。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -65,7 +65,7 @@
 - 数据表：`query_run`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_03`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/security/test_fo_03.py`，失败原因只能是目标行为未实现。
 - 可观察结果：服务端身份和数据库RLS阻止跨租户读取。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -78,7 +78,7 @@
 - 数据表：`result_artifact`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_04`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/intent/test_fo_04.py`，失败原因只能是目标行为未实现。
 - 可观察结果：模型输出typed intent且绑定语义目录版本。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -91,7 +91,7 @@
 - 数据表：`query_run`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_05`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/query/test_ast_fo_05.py`，失败原因只能是目标行为未实现。
 - 可观察结果：AST拒绝DDL/DML、禁止函数和非白名单资源。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -104,7 +104,7 @@
 - 数据表：`result_artifact`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_06`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/query/test_execution_fo_06.py`，失败原因只能是目标行为未实现。
 - 可观察结果：查询使用参数化计划、稳定分页和CAS状态。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -117,7 +117,7 @@
 - 数据表：`query_run`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_07`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/query/test_budget_fo_07.py`，失败原因只能是目标行为未实现。
 - 可观察结果：超预算查询执行前拒绝且超时可取消。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -130,7 +130,7 @@
 - 数据表：`result_artifact`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_08`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/results/test_fo_08.py`，失败原因只能是目标行为未实现。
 - 可观察结果：缓存绑定RLS/语义/watermark且结果可追溯。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -143,7 +143,7 @@
 - 数据表：`query_run`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_09`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/tickets/test_fo_09.py`，失败原因只能是目标行为未实现。
 - 可观察结果：异常finding只经审批创建幂等人工工单。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -156,7 +156,7 @@
 - 数据表：`result_artifact`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_10`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/recovery/test_fo_10.py`，失败原因只能是目标行为未实现。
 - 可观察结果：worker崩溃、查询取消和工单UNKNOWN可恢复。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -169,7 +169,7 @@
 - 数据表：`query_run`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_11`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/eval/test_fo_11.py`，失败原因只能是目标行为未实现。
 - 可观察结果：RLS、AST、查询正确率和模型收益由冻结集验证。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -182,7 +182,7 @@
 - 数据表：`result_artifact`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_12`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/release/test_fo_12.py`，失败原因只能是目标行为未实现。
 - 可观察结果：语义/FOCUS/数据库adapter可回滚替换。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
@@ -195,7 +195,7 @@
 - 数据表：`query_run`；迁移必须向前/向后兼容并保留审计事实。
 - API：`/queries`；禁止把领域决策写入控制器。
 - 状态：`created -> planned -> authorized -> running -> completed -> cancelled -> timed_out`，非法转换必须稳定拒绝。
-- 失败测试：先创建/运行 `tests/finops/fo_13`，失败原因只能是目标行为未实现。
+- 失败测试：先创建/运行 `tests/finops/ablation/test_fo_13.py`，失败原因只能是目标行为未实现。
 - 可观察结果：检索收益、发布门槛和未验证项有真实性报告。
 - 回归命令：`python -m pytest tests/finops -q`。
 - 交接：记录 RED/GREEN、实际改动、未运行项、风险、commit SHA；禁止 merge 和 force-push。
