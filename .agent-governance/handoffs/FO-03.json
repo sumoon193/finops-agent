@@ -1,0 +1,58 @@
+{
+  "task_id": "FO-03",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-03-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "5e22add014fa87887dcf6cd0185cb19f1c5dbf18",
+  "status": "pushed",
+  "changed_files": [
+    "app/finops/security/__init__.py",
+    "app/finops/security/identity.py",
+    "app/finops/security/rls.py",
+    "migrations/finops/20260804_001_enable_rls.sql",
+    "tests/finops/security/test_fo_03.py"
+  ],
+  "created_files": [
+    "app/finops/security/__init__.py",
+    "app/finops/security/identity.py",
+    "app/finops/security/rls.py",
+    "migrations/finops/20260804_001_enable_rls.sql",
+    "tests/finops/security/test_fo_03.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/security/test_fo_03.py -q",
+    "exit_code": 2,
+    "reason": "身份、RLS 与行列策略目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'app.finops.security'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/security/test_fo_03.py -q",
+    "exit_code": 0,
+    "summary": "4 passed（实现正确，测试同租户用例的阻断断言修正）"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "真实数据库 RLS 未在真实服务上验证，仅离线镜像语义，数据库默认离线",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "RLS 语义以应用层 AuthorizedQueryPlan 镜像，未接真实数据库执行计划",
+    "行列策略覆盖 billing_line_item 单表，其它数据表策略由后续模块迁移补充"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-03，随后激活 FO-04"
+  ]
+}
