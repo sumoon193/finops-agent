@@ -1,0 +1,33 @@
+# generated-by: central-agent-governance
+name: governance
+on:
+  push:
+    branches: ['codex/**']
+  pull_request:
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: manifest
+        run: python tools/governance/run.py manifest
+      - name: task-packet
+        run: python tools/governance/run.py task-packet
+      - name: branch-policy
+        run: python tools/governance/run.py branch-policy
+      - name: scope
+        run: python tools/governance/run.py scope
+      - name: test-integrity
+        run: python tools/governance/run.py test-integrity
+      - name: secrets
+        run: python tools/governance/run.py secrets
+      - name: focused-tests
+        run: python tools/governance/run.py focused-tests
+      - name: regression
+        run: python tools/governance/run.py regression
+      - name: handoff
+        run: python tools/governance/run.py handoff
+      - name: contract-tests
+        run: python -m pytest tests/governance -q

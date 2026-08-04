@@ -1,0 +1,30 @@
+{
+  "architecture_modules": [
+    "FO-01",
+    "FO-02",
+    "FO-03",
+    "FO-04",
+    "FO-05",
+    "FO-06",
+    "FO-07",
+    "FO-08",
+    "FO-09",
+    "FO-10",
+    "FO-11",
+    "FO-12",
+    "FO-13"
+  ],
+  "build_commands": [
+    "python -m compileall -q app tests scripts"
+  ],
+  "external_services": [],
+  "generated_by": "generated-by: central-agent-governance",
+  "languages": [
+    "python"
+  ],
+  "project_id": "finops-agent",
+  "source_root": "app/finops",
+  "test_commands": [
+    "python -m pytest tests -q -p no:cacheprovider"
+  ]
+}

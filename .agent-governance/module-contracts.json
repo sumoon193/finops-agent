@@ -1,0 +1,460 @@
+{
+  "cross_module_invariants": [
+    "服务端可信身份不能由模型或客户端覆盖",
+    "所有写副作用必须审批、幂等、审计并处理 UNKNOWN 对账",
+    "状态推进必须通过 typed command 与合法状态机",
+    "外部依赖必须有 Fake 或 Recorded adapter，单元测试禁止网络",
+    "用户可见结论必须关联 provenance/citation；证据不足保持 blocked/review",
+    "项目完成前禁止生成学习、面试、简历和总结材料"
+  ],
+  "governance_version": "1.1.0",
+  "modules": [
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "query_run"
+      ],
+      "dependencies": [],
+      "failure_test": "tests/finops/fo_01",
+      "interface_signatures": [
+        "IdentityContext.execute(input: FO01Input) -> FO01Result"
+      ],
+      "module_id": "FO-01",
+      "observable_result": "账单、目录和模型/数据来源可追溯",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "docs/audit/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/audit/**"
+      ],
+      "title": "来源、范围与许可证"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "result_artifact"
+      ],
+      "dependencies": [
+        "FO-01"
+      ],
+      "failure_test": "tests/finops/fo_02",
+      "interface_signatures": [
+        "QueryIntent.execute(input: FO02Input) -> FO02Result"
+      ],
+      "module_id": "FO-02",
+      "observable_result": "账单规范化保留来源、货币、单位和watermark",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/ingestion/**",
+        "app/finops/focus/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/focus/**"
+      ],
+      "title": "FOCUS canonical 摄取"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "query_run"
+      ],
+      "dependencies": [
+        "FO-02"
+      ],
+      "failure_test": "tests/finops/fo_03",
+      "interface_signatures": [
+        "AuthorizedQueryPlan.execute(input: FO03Input) -> FO03Result"
+      ],
+      "module_id": "FO-03",
+      "observable_result": "服务端身份和数据库RLS阻止跨租户读取",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/security/**",
+        "migrations/finops/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/security/**"
+      ],
+      "title": "身份、RLS 与行列策略"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "result_artifact"
+      ],
+      "dependencies": [
+        "FO-03"
+      ],
+      "failure_test": "tests/finops/fo_04",
+      "interface_signatures": [
+        "IdentityContext.execute(input: FO04Input) -> FO04Result"
+      ],
+      "module_id": "FO-04",
+      "observable_result": "模型输出typed intent且绑定语义目录版本",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/intent/**",
+        "app/finops/catalog/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/intent/**"
+      ],
+      "title": "Intent、模型与语义目录"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "query_run"
+      ],
+      "dependencies": [
+        "FO-04"
+      ],
+      "failure_test": "tests/finops/fo_05",
+      "interface_signatures": [
+        "QueryIntent.execute(input: FO05Input) -> FO05Result"
+      ],
+      "module_id": "FO-05",
+      "observable_result": "AST拒绝DDL/DML、禁止函数和非白名单资源",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/query/ast/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/query/test_ast_*.py"
+      ],
+      "title": "AST 只读门禁"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "result_artifact"
+      ],
+      "dependencies": [
+        "FO-05"
+      ],
+      "failure_test": "tests/finops/fo_06",
+      "interface_signatures": [
+        "AuthorizedQueryPlan.execute(input: FO06Input) -> FO06Result"
+      ],
+      "module_id": "FO-06",
+      "observable_result": "查询使用参数化计划、稳定分页和CAS状态",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/query/execution/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/query/test_execution_*.py"
+      ],
+      "title": "只读查询、分页与状态"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "query_run"
+      ],
+      "dependencies": [
+        "FO-06"
+      ],
+      "failure_test": "tests/finops/fo_07",
+      "interface_signatures": [
+        "IdentityContext.execute(input: FO07Input) -> FO07Result"
+      ],
+      "module_id": "FO-07",
+      "observable_result": "超预算查询执行前拒绝且超时可取消",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/query/budget/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/query/test_budget_*.py"
+      ],
+      "title": "预算、超时与取消"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "result_artifact"
+      ],
+      "dependencies": [
+        "FO-07"
+      ],
+      "failure_test": "tests/finops/fo_08",
+      "interface_signatures": [
+        "QueryIntent.execute(input: FO08Input) -> FO08Result"
+      ],
+      "module_id": "FO-08",
+      "observable_result": "缓存绑定RLS/语义/watermark且结果可追溯",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/results/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/results/**"
+      ],
+      "title": "结果、缓存、审计与血缘"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "query_run"
+      ],
+      "dependencies": [
+        "FO-08"
+      ],
+      "failure_test": "tests/finops/fo_09",
+      "interface_signatures": [
+        "AuthorizedQueryPlan.execute(input: FO09Input) -> FO09Result"
+      ],
+      "module_id": "FO-09",
+      "observable_result": "异常finding只经审批创建幂等人工工单",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/anomaly/**",
+        "app/finops/tickets/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/tickets/**"
+      ],
+      "title": "异常归因与 GovernanceTicket"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "result_artifact"
+      ],
+      "dependencies": [
+        "FO-09"
+      ],
+      "failure_test": "tests/finops/fo_10",
+      "interface_signatures": [
+        "IdentityContext.execute(input: FO10Input) -> FO10Result"
+      ],
+      "module_id": "FO-10",
+      "observable_result": "worker崩溃、查询取消和工单UNKNOWN可恢复",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/observability/**",
+        "app/finops/recovery/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/recovery/**"
+      ],
+      "title": "可观测、恢复与对账"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "query_run"
+      ],
+      "dependencies": [
+        "FO-10"
+      ],
+      "failure_test": "tests/finops/fo_11",
+      "interface_signatures": [
+        "QueryIntent.execute(input: FO11Input) -> FO11Result"
+      ],
+      "module_id": "FO-11",
+      "observable_result": "RLS、AST、查询正确率和模型收益由冻结集验证",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "app/finops/eval/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/eval/**"
+      ],
+      "title": "冻结评测与真实模型受控试验"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "result_artifact"
+      ],
+      "dependencies": [
+        "FO-11"
+      ],
+      "failure_test": "tests/finops/fo_12",
+      "interface_signatures": [
+        "AuthorizedQueryPlan.execute(input: FO12Input) -> FO12Result"
+      ],
+      "module_id": "FO-12",
+      "observable_result": "语义/FOCUS/数据库adapter可回滚替换",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "scripts/finops/**",
+        "docs/finops/release/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/release/**"
+      ],
+      "title": "回滚、演练与数据层替换"
+    },
+    {
+      "api_contracts": [
+        "/queries"
+      ],
+      "data_tables": [
+        "query_run"
+      ],
+      "dependencies": [
+        "FO-12"
+      ],
+      "failure_test": "tests/finops/fo_13",
+      "interface_signatures": [
+        "IdentityContext.execute(input: FO13Input) -> FO13Result"
+      ],
+      "module_id": "FO-13",
+      "observable_result": "检索收益、发布门槛和未验证项有真实性报告",
+      "regression_command": "python -m pytest tests/finops -q",
+      "source_paths": [
+        "docs/finops/audit/**"
+      ],
+      "state_machine": [
+        "created",
+        "planned",
+        "authorized",
+        "running",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "test_paths": [
+        "tests/finops/ablation/**"
+      ],
+      "title": "检索消融与发布审计"
+    }
+  ],
+  "project_id": "finops-agent"
+}

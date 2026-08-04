@@ -1,0 +1,40 @@
+{
+  "allowed_untracked_paths": [],
+  "baseline_sha": "45850193e814e8cf65ae5d0e3436a427580e1c70",
+  "branch_prefix": "codex/",
+  "default_branch": "main",
+  "governance_version": "1.1.0",
+  "integration_owner": "primary-integrator",
+  "languages": [
+    "python"
+  ],
+  "project_id": "finops-agent",
+  "project_profile": ".agent-governance/project-profile.json",
+  "protected_paths": [
+    ".env",
+    "config/cloud-credentials/**",
+    "data/billing-private/**"
+  ],
+  "remote_protection": "unverified",
+  "required_ci_gates": [
+    "governance",
+    "project-tests",
+    "contract-tests"
+  ],
+  "required_local_gates": [
+    "task-packet",
+    "branch-policy",
+    "scope",
+    "test-integrity",
+    "secrets",
+    "focused-tests",
+    "regression",
+    "handoff"
+  ],
+  "sensitive_paths": [
+    ".env",
+    "config/cloud-credentials/**",
+    "data/billing-private/**"
+  ],
+  "status": "managed"
+}

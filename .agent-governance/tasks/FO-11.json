@@ -1,0 +1,109 @@
+{
+  "base_ref": "main",
+  "base_sha": "45850193e814e8cf65ae5d0e3436a427580e1c70",
+  "behavior": {
+    "failure_modes": [
+      "输入非法时稳定失败",
+      "权限或版本冲突时拒绝",
+      "外部依赖不可用时使用Fake/Recorded或保持blocked"
+    ],
+    "inputs": [
+      "冻结评测与真实模型受控试验的typed输入和固定fixture"
+    ],
+    "invariants": [
+      "RLS、AST、查询正确率和模型收益由冻结集验证",
+      "范围外问题只记录不顺手修改",
+      "未验证外部服务不得写成通过"
+    ],
+    "non_goals": [
+      "不修改任务白名单外模块",
+      "不生成学习/面试/简历文档",
+      "不执行merge或force-push"
+    ],
+    "observable_result": "RLS、AST、查询正确率和模型收益由冻结集验证",
+    "outputs": [
+      "冻结评测与真实模型受控试验的typed结果、状态事件和审计信息"
+    ],
+    "states": [
+      "not-started",
+      "red-observed",
+      "focused-tests-passed",
+      "blocked"
+    ]
+  },
+  "branch": "codex/finops-agent/fo-11-module",
+  "capabilities": {
+    "approval_flow_changes": false,
+    "database_changes": false,
+    "dependency_changes": false,
+    "docker": "disabled",
+    "external_services": [],
+    "network": "disabled",
+    "public_api_changes": false,
+    "runtime_kernel_changes": false
+  },
+  "delivery": {
+    "commit_required": true,
+    "force_push_allowed": false,
+    "handoff_file": ".agent-governance/handoffs/FO-11.json",
+    "learner_confirmation_required": false,
+    "merge_allowed": false,
+    "push_allowed": true
+  },
+  "dependencies": [
+    "FO-10"
+  ],
+  "goal": "实现冻结评测与真实模型受控试验的单一可观察合同",
+  "max_changed_files": 8,
+  "max_diff_lines": 800,
+  "owner_model": "implementation-agent",
+  "priority": "medium",
+  "project_id": "finops-agent",
+  "reviewer": "primary-integrator",
+  "scope": {
+    "allowed_create_paths": [
+      "app/finops/eval/**",
+      "tests/finops/eval/**"
+    ],
+    "allowed_delete_paths": [],
+    "allowed_paths": [
+      "app/finops/eval/**",
+      "tests/finops/eval/**"
+    ],
+    "read_denylist": [
+      ".env",
+      "data/billing-private/**",
+      "config/cloud-credentials/**"
+    ],
+    "read_only_paths": [
+      "AGENTS.md",
+      ".agent-governance/**",
+      "LICENSE"
+    ],
+    "write_denylist": [
+      ".env",
+      "data/billing-private/**",
+      "config/cloud-credentials/**"
+    ]
+  },
+  "security": {
+    "log_redaction": "required",
+    "path_policy": "repository-relative",
+    "secret_policy": "no-secret-content",
+    "subprocess_policy": "argv-only"
+  },
+  "task_id": "FO-11",
+  "tdd": {
+    "expected_red_exit_code": 1,
+    "expected_red_reason": "冻结评测与真实模型受控试验目标行为或入口尚未实现",
+    "green_command": "python -m pytest tests/finops/fo_11 -q",
+    "implementation_boundary": "只实现使“RLS、AST、查询正确率和模型收益由冻结集验证”成立的最小代码，不扩展相邻模块",
+    "red_command": "python -m pytest tests/finops/fo_11 -q",
+    "red_test_files": [
+      "tests/finops/fo_11"
+    ],
+    "regression_commands": [
+      "python -m pytest tests/finops -q"
+    ]
+  }
+}
