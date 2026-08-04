@@ -1,0 +1,56 @@
+{
+  "task_id": "FO-12",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/fo-12-module",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "a611f9040f8349147832435fb7416bc83e2915be",
+  "status": "pushed",
+  "changed_files": [
+    "docs/finops/release/rollback-plan.md",
+    "scripts/finops/__init__.py",
+    "scripts/finops/rollback.py",
+    "tests/finops/release/test_fo_12.py"
+  ],
+  "created_files": [
+    "docs/finops/release/rollback-plan.md",
+    "scripts/finops/__init__.py",
+    "scripts/finops/rollback.py",
+    "tests/finops/release/test_fo_12.py"
+  ],
+  "deleted_files": [],
+  "scope_deviations": [],
+  "red": {
+    "command": "python -m pytest tests/finops/release/test_fo_12.py -q",
+    "exit_code": 2,
+    "reason": "回滚、演练与数据层替换目标行为或入口尚未实现",
+    "summary": "ModuleNotFoundError: No module named 'scripts'（collection error）",
+    "failure_due_to_missing_behavior": true
+  },
+  "green": {
+    "command": "python -m pytest tests/finops/release/test_fo_12.py -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "regression": {
+    "command": "python -m pytest tests/finops -q",
+    "exit_code": 0,
+    "summary": "4 passed"
+  },
+  "inspection": {
+    "command": "python -m pytest tests/governance -q -p no:cacheprovider",
+    "exit_code": 0,
+    "summary": "2 passed（模块契约与跨模块不变量门禁）"
+  },
+  "not_run": [],
+  "unverified": [
+    "真实数据库/消息/外部服务的 adapter 替换未执行，仅离线注册表演练",
+    "GitHub 远端分支保护未配置，remote_protection=unverified"
+  ],
+  "known_risks": [
+    "回滚栈为进程内内存，真实持久化回滚状态需主集成后接入",
+    "演练文档声明了 unverified 项，尚未在真实崩溃点执行故障恢复演练"
+  ],
+  "follow_up": [
+    "由主集成模型按依赖图合并 FO-12，随后激活 FO-13"
+  ]
+}
