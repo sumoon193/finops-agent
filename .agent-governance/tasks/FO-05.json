@@ -96,11 +96,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "AST 只读门禁目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/query/test_fo_05.py -q",
+    "green_command": "python -m pytest tests/finops/query/test_ast_fo_05.py -q",
     "implementation_boundary": "只实现使“AST拒绝DDL/DML、禁止函数和非白名单资源”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/query/test_fo_05.py -q",
+    "red_command": "python -m pytest tests/finops/query/test_ast_fo_05.py -q",
     "red_test_files": [
-      "tests/finops/query/test_fo_05.py"
+      "tests/finops/query/test_ast_fo_05.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"

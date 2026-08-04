@@ -96,11 +96,11 @@
   "tdd": {
     "expected_red_exit_code": 1,
     "expected_red_reason": "预算、超时与取消目标行为或入口尚未实现",
-    "green_command": "python -m pytest tests/finops/query/test_fo_07.py -q",
+    "green_command": "python -m pytest tests/finops/query/test_budget_fo_07.py -q",
     "implementation_boundary": "只实现使“超预算查询执行前拒绝且超时可取消”成立的最小代码，不扩展相邻模块",
-    "red_command": "python -m pytest tests/finops/query/test_fo_07.py -q",
+    "red_command": "python -m pytest tests/finops/query/test_budget_fo_07.py -q",
     "red_test_files": [
-      "tests/finops/query/test_fo_07.py"
+      "tests/finops/query/test_budget_fo_07.py"
     ],
     "regression_commands": [
       "python -m pytest tests/finops -q"
