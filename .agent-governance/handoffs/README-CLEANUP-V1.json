@@ -1,0 +1,15 @@
+{
+  "task_id": "README-CLEANUP-V1",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/readme-cleanup-v1",
+  "base_sha": "2f869352419b3f0e43d89bd8e030a22ec33aee01",
+  "commit_sha": "4c85960",
+  "red": {"command": "python -m pytest tests/governance/test_public_documentation_contract.py -q -p no:cacheprovider", "result": "2 failed, 1 passed；README 仍为英文结构，当前入口仍有旧治理措辞。"},
+  "green": {"command": "python -m pytest tests/governance/test_public_documentation_contract.py -q -p no:cacheprovider", "result": "3 passed"},
+  "regression": {"commands": ["python -m pytest tests -q -p no:cacheprovider", "python -m compileall -q app tests scripts"], "result": "93 passed，1 个既有 Starlette 弃用警告；compileall 通过。"},
+  "governance": {"passed": ["status", "manifest", "task-packet", "branch-policy", "scope", "test-integrity", "secrets", "focused-tests"], "blocked": []},
+  "files": ["README.md", "AGENTS.md", ".agent-governance/AGENT-ENTRY.md", "tests/governance/test_public_documentation_contract.py"],
+  "unrun": [],
+  "risks": ["现有 Ruff 基线在非任务范围文件中仍有历史告警；本次新增文件已通过 Ruff。真实账单、数据库、Qwen 和工单服务需要独立 live smoke。"],
+  "status": "complete"
+}
