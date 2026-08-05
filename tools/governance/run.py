@@ -6,6 +6,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
@@ -178,7 +179,10 @@ elif args.gate in {"focused-tests", "regression"}:
     if not commands:
         blocked(field + " missing")
     for command in commands:
-        result = subprocess.run(shlex.split(command), cwd=root)
+        arguments = shlex.split(command)
+        if arguments and arguments[0] in {"python", "python3"}:
+            arguments[0] = sys.executable
+        result = subprocess.run(arguments, cwd=root)
         if result.returncode != 0:
             blocked(args.gate + " failed")
 
