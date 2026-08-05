@@ -1,0 +1,20 @@
+{
+  "task_id": "INTEGRATION",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/integration",
+  "base_ref": "main",
+  "base_sha": "f6928add787804d5fd7136c08cc2949537bed98a",
+  "dependencies": ["FO-13"],
+  "priority": "high",
+  "owner_model": "primary-integrator",
+  "reviewer": "primary-integrator",
+  "goal": "Integrate trusted billing storage, durable repositories, correct cancellation, real intent adapters, and live smoke reporting.",
+  "max_changed_files": 2000,
+  "max_diff_lines": 200000,
+  "scope": {"allowed_paths": ["app/**", "tests/**", "scripts/**", "docs/**", "migrations/**", "README.md", "pyproject.toml"], "allowed_create_paths": ["app/**", "tests/**", "scripts/**", "docs/**", "migrations/**"], "allowed_delete_paths": [], "read_only_paths": ["AGENTS.md", ".agent-governance/**", "LICENSE"], "read_denylist": [".env", "data/billing-private/**", "config/cloud-credentials/**"], "write_denylist": [".env", "data/billing-private/**", "config/cloud-credentials/**"]},
+  "behavior": {"observable_result": "FinOps queries use trusted tenant data and cannot cancel completed work.", "failure_modes": ["untrusted rows", "tenant mismatch", "completed cancellation"], "non_goals": ["merge or force-push", "secret material", "learning documents"]},
+  "capabilities": {"approval_flow_changes": false, "database_changes": true, "dependency_changes": false, "docker": "disabled", "external_services": ["billing", "database", "model", "tickets"], "network": "live-smoke-only", "public_api_changes": true, "runtime_kernel_changes": true},
+  "delivery": {"commit_required": true, "merge_allowed": false, "force_push_allowed": false, "push_allowed": true, "handoff_file": ".agent-governance/handoffs/INTEGRATION.json"},
+  "security": {"secret_policy": "no-secret-content", "read_denylist": [".env", "data/billing-private/**", "config/cloud-credentials/**"], "write_denylist": [".env", "data/billing-private/**", "config/cloud-credentials/**"]},
+  "tdd": {"red_command": "python -m pytest tests/finops/api/test_api.py -q", "red_test_files": ["tests/finops/api/test_api.py"], "expected_red_reason": "client rows and cancellation semantics violated the contract", "green_command": "python -m pytest tests -q", "regression_commands": ["python -m compileall -q app"]}
+}
