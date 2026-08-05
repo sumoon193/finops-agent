@@ -3,10 +3,10 @@
   "project_id": "finops-agent",
   "branch": "codex/finops-agent/integration-v2",
   "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
-  "commit_sha": "bdb4b97f3b682596c01daecfeec05dc958337235",
+  "commit_sha": "079ad0144e17456df3382b3afc18c0097851346d",
   "red": {
     "command": "python -m pytest tests/governance/test_governance_contract.py -q",
-    "observed": "detached push branch resolution and editable-install metadata exclusion were incomplete"
+    "observed": "detached push branch resolution, editable-install metadata exclusion and PATH-dependent Python selection were incomplete"
   },
   "green": {
     "command": "python -m pytest -q",
