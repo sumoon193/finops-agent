@@ -6,6 +6,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
@@ -42,7 +43,11 @@ manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 if manifest.get("status") != "managed":
     blocked("project is not managed")
 
-branch = git("branch", "--show-current").strip() or os.environ.get("GITHUB_HEAD_REF", "").strip()
+branch = (
+    git("branch", "--show-current").strip()
+    or os.environ.get("GITHUB_HEAD_REF", "").strip()
+    or os.environ.get("GITHUB_REF_NAME", "").strip()
+)
 task_files = list((root / ".agent-governance" / "tasks").glob("*.json"))
 matching_tasks = []
 for task_file in task_files:
@@ -174,7 +179,10 @@ elif args.gate in {"focused-tests", "regression"}:
     if not commands:
         blocked(field + " missing")
     for command in commands:
-        result = subprocess.run(shlex.split(command), cwd=root)
+        arguments = shlex.split(command)
+        if arguments and arguments[0] in {"python", "python3"}:
+            arguments[0] = sys.executable
+        result = subprocess.run(arguments, cwd=root)
         if result.returncode != 0:
             blocked(args.gate + " failed")
 
