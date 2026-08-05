@@ -1,0 +1,26 @@
+{
+  "task_id": "INTEGRATION-V2",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/integration-v2",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "commit_sha": "bdb4b97f3b682596c01daecfeec05dc958337235",
+  "red": {
+    "command": "python -m pytest tests/governance/test_governance_contract.py -q",
+    "observed": "detached push branch resolution and editable-install metadata exclusion were incomplete"
+  },
+  "green": {
+    "command": "python -m pytest -q",
+    "result": "89 passed, 1 dependency warning"
+  },
+  "regression": {
+    "command": "python -m compileall -q app tests scripts",
+    "result": "passed"
+  },
+  "live": {
+    "result": "health and configured Qwen intent-model smoke paths passed separately",
+    "acceptance": "model intent cannot bypass tenant, catalog or AST validation"
+  },
+  "files": ["app/finops", "tests/finops", "migrations/finops", "scripts/finops", "README.md"],
+  "risks": ["external billing and ticket providers remain environment-specific live checks"],
+  "status": "complete"
+}
