@@ -42,7 +42,11 @@ manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 if manifest.get("status") != "managed":
     blocked("project is not managed")
 
-branch = git("branch", "--show-current").strip() or os.environ.get("GITHUB_HEAD_REF", "").strip()
+branch = (
+    git("branch", "--show-current").strip()
+    or os.environ.get("GITHUB_HEAD_REF", "").strip()
+    or os.environ.get("GITHUB_REF_NAME", "").strip()
+)
 task_files = list((root / ".agent-governance" / "tasks").glob("*.json"))
 matching_tasks = []
 for task_file in task_files:
