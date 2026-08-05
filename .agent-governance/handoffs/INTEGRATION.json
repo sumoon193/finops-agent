@@ -1,0 +1,14 @@
+{
+  "task_id": "INTEGRATION",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/integration",
+  "base_sha": "f6928add787804d5fd7136c08cc2949537bed98a",
+  "commit_sha": "c3abb7f388c1f50e2260d7a78046ea26a9600617",
+  "red": {"command": "python -m pytest tests -q", "observed": "client-provided rows and completed-query cancellation violated contract"},
+  "green": {"command": "python -m pytest tests -q -p no:cacheprovider", "result": "86 passed"},
+  "regression": {"command": "python -m compileall -q app", "result": "not run after final edits"},
+  "files": ["app/finops/api.py", "app/finops/persistence.py", "app/finops/intent/model.py", "tests/finops/api"],
+  "not_run": ["scripts/finops/live_smoke.py: blocked until FINOPS_BASE_URL and external services are supplied"],
+  "risks": ["live database, billing source and model provider unverified"],
+  "status": "blocked-live"
+}

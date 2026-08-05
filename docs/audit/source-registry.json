@@ -1,0 +1,41 @@
+{
+  "contract_version": "1.0.0",
+  "project_id": "finops-agent",
+  "module": "FO-01",
+  "observable_result": "账单、目录和模型/数据来源可追溯",
+  "sources": [
+    {
+      "source_id": "src-billing-focus",
+      "source_family": "billing",
+      "source_name": "云账单 FOCUS 导出",
+      "origin": "云厂商计费导出；当前仅为离线样例，远程来源未验证",
+      "license": "source-example-fair-use",
+      "version": "1.0.0",
+      "status": "pending",
+      "evidence_pointer": "docs/audit/source-registry.json#src-billing-focus",
+      "consumed_by": ["FO-02"]
+    },
+    {
+      "source_id": "src-catalog-semantic",
+      "source_family": "catalog",
+      "source_name": "语义目录（资源与费率）",
+      "origin": "项目内自建语义目录，无外部依赖",
+      "license": "project-internal",
+      "version": "0.1.0",
+      "status": "active",
+      "evidence_pointer": "docs/audit/source-registry.json#src-catalog-semantic",
+      "consumed_by": ["FO-04", "FO-08"]
+    },
+    {
+      "source_id": "src-model-query-intent",
+      "source_family": "model",
+      "source_name": "查询意图模型",
+      "origin": "Fake/Recorded adapter，未接入真实模型",
+      "license": "project-internal",
+      "version": "0.1.0",
+      "status": "blocked",
+      "evidence_pointer": "docs/audit/source-registry.json#src-model-query-intent",
+      "consumed_by": ["FO-04"]
+    }
+  ]
+}
