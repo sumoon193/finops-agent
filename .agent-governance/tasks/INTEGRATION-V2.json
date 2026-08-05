@@ -1,0 +1,56 @@
+{
+  "task_id": "INTEGRATION-V2",
+  "project_id": "finops-agent",
+  "branch": "codex/finops-agent/integration-v2",
+  "base_ref": "main",
+  "base_sha": "a4e2111b4e8871b6b8ac4168c448fa495f0181f3",
+  "dependencies": ["FO-13"],
+  "priority": "high",
+  "owner_model": "primary-integrator",
+  "reviewer": "primary-integrator",
+  "goal": "Integrate the trusted FinOps API and recovery model on the current main branch with clean editable packaging and reliable governance CI.",
+  "max_changed_files": 2000,
+  "max_diff_lines": 200000,
+  "scope": {
+    "allowed_paths": ["app/**", "tests/**", "scripts/**", "docs/**", "migrations/**", "README.md", "pyproject.toml", ".gitignore"],
+    "allowed_create_paths": ["app/**", "tests/**", "scripts/**", "docs/**", "migrations/**"],
+    "allowed_delete_paths": [],
+    "read_only_paths": ["AGENTS.md", ".agent-governance/**", "LICENSE"],
+    "read_denylist": [".env", "data/private/**", "billing/raw/**"],
+    "write_denylist": [".env", "data/private/**", "billing/raw/**"]
+  },
+  "behavior": {
+    "observable_result": "FinOps queries use trusted billing data, tenant isolation, durable state and explicit real-service validation.",
+    "failure_modes": ["tenant mismatch", "unsafe query", "budget exceeded", "unknown side effect", "governance branch resolution failure"],
+    "non_goals": ["merge or force-push", "secret material", "learning documents"]
+  },
+  "capabilities": {
+    "approval_flow_changes": true,
+    "database_changes": true,
+    "dependency_changes": true,
+    "docker": "disabled",
+    "external_services": ["model", "billing", "tickets"],
+    "network": "live-smoke-only",
+    "public_api_changes": true,
+    "runtime_kernel_changes": true
+  },
+  "delivery": {
+    "commit_required": true,
+    "merge_allowed": false,
+    "force_push_allowed": false,
+    "push_allowed": true,
+    "handoff_file": ".agent-governance/handoffs/INTEGRATION-V2.json"
+  },
+  "security": {
+    "secret_policy": "no-secret-content",
+    "read_denylist": [".env", "data/private/**", "billing/raw/**"],
+    "write_denylist": [".env", "data/private/**", "billing/raw/**"]
+  },
+  "tdd": {
+    "red_command": "python -m pytest tests/governance -q",
+    "red_test_files": ["tests/governance/test_governance_contract.py"],
+    "expected_red_reason": "push events used a detached HEAD without falling back to GITHUB_REF_NAME and editable installation leaked egg-info into scope validation",
+    "green_command": "python -m pytest tests -q",
+    "regression_commands": ["python -m compileall -q app"]
+  }
+}
