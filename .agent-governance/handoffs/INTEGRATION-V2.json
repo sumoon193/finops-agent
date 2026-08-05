@@ -10,7 +10,7 @@
   },
   "green": {
     "command": "python -m pytest -q",
-    "result": "89 passed, 1 dependency warning"
+    "result": "90 passed, 1 dependency warning"
   },
   "regression": {
     "command": "python -m compileall -q app tests scripts",
