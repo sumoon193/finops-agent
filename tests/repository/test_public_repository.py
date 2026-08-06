@@ -3,6 +3,24 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+REQUIRED_SECTIONS = (
+    "## 项目简介与适用场景",
+    "## 功能清单",
+    "## 系统架构与核心流程",
+    "## 技术栈与运行依赖",
+    "## 目录结构说明",
+    "## 环境要求",
+    "## 本地快速启动",
+    "## Docker 或中间件启动方式",
+    "## 配置项和环境变量",
+    "## 主要 API",
+    "## 请求示例与返回结果",
+    "## 离线测试",
+    "## 真实服务验证",
+    "## 常见问题与故障排查",
+    "## 安全边界和生产注意事项",
+    "## License",
+)
 
 
 def test_public_repository_has_no_internal_governance_files() -> None:
@@ -13,7 +31,28 @@ def test_public_repository_has_no_internal_governance_files() -> None:
 
 def test_readme_is_public_facing_and_portable() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "D:\\Code\\" not in readme
-    assert "D:\\py\\" not in readme
-    assert ".agent-governance" not in readme
-    assert "完成证明" not in readme
+    for section in REQUIRED_SECTIONS:
+        assert section in readme
+    for forbidden in (
+        "D:\\Code\\",
+        "D:\\py\\",
+        "C:\\Users\\",
+        ".agent-governance",
+        "面试",
+        "简历",
+        "完成证明",
+        "学习证明",
+        "内部治理",
+        "任务交接",
+    ):
+        assert forbidden not in readme
+    for required in (
+        "app.finops.api:app",
+        "FINOPS_DATABASE_PATH",
+        "POST` | `/billing-ingestions",
+        "POST` | `/queries",
+        "X-Tenant-Id",
+        "scripts\\finops\\live_smoke.py",
+        "MIT",
+    ):
+        assert required in readme
