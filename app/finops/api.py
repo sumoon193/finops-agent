@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import os
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, status
@@ -30,7 +31,8 @@ from app.finops.catalog.registry import SemanticCatalog
 from app.finops.focus.canonical import QueryIntent as FocusQueryIntent, FO02Input as NormalizeInput
 from app.finops.intent.model import IdentityContext as IntentIdentityContext, FO04Input as IntentInput
 from app.finops.kernel import IdentityContext, RuntimeKernel, Command
-from app.finops.persistence import Record, Repositories
+from app.finops.persistence import Record, Repositories, set_current_tenant
+from app.finops.intent.model import ModelUnavailableError, RealIntentModel
 from app.finops.query.ast.guard import QueryIntent as AstGuard, FO05Input as AstInput
 from app.finops.query.budget.controller import IdentityContext as BudgetContext, FO07Input as BudgetInput
 from app.finops.query.execution.planner import AuthorizedQueryPlan as ExecPlan, FO06Input as ExecInput
@@ -72,6 +74,7 @@ def resolve_identity(
 ) -> IdentityContext:
     if not x_tenant_id:
         raise ForbiddenIdentity("missing trusted X-Tenant-Id header")
+    set_current_tenant(x_tenant_id)
     return IdentityContext(tenant_id=x_tenant_id, role=x_role or "analyst", request_id=x_request_id or "")
 
 
@@ -196,8 +199,18 @@ def create_query(
     kernel.advance("planned", "created", "query-planned")
 
     # FO-04 意图：模型输出 typed intent，绑定语义目录版本。
-    intent = IntentIdentityContext(catalog=CATALOG, role=identity.role)
-    intent.execute(IntentInput(raw={"kind": "cost-breakdown", "params": payload.params}, catalog_version=payload.catalog_version))
+    if os.getenv("FINOPS_AGENT_MODE", "offline").lower() == "live":
+        try:
+            live_intent = RealIntentModel().generate(payload.statement, CATALOG)
+        except ModelUnavailableError as exc:
+            raise HTTPException(status_code=503, detail={"error": "model_blocked", "message": str(exc)}) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail={"error": "model_failed", "message": str(exc)}) from exc
+        if live_intent.catalog_version != CATALOG.version:
+            raise HTTPException(status_code=422, detail={"error": "catalog_version_mismatch"})
+    else:
+        intent = IntentIdentityContext(catalog=CATALOG, role=identity.role)
+        intent.execute(IntentInput(raw={"kind": "cost-breakdown", "params": payload.params}, catalog_version=payload.catalog_version))
     kernel.advance("authorized", "planned", "query-authorized")
 
     # FO-05 AST 门禁：拒绝 DDL/DML、函数与非白名单资源。
