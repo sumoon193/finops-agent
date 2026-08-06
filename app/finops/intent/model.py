@@ -55,7 +55,7 @@ class IdentityContext:
 
 
 class ModelUnavailableError(RuntimeError):
-    """Real intent parsing requires explicit model credentials."""
+    """Real intent parsing is blocked until explicit model credentials exist."""
 
 
 class RealIntentModel:

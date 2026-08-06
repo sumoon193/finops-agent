@@ -20,9 +20,26 @@ import json
 import os
 import sqlite3
 import time
+import uuid
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Protocol
+
+try:
+    import psycopg
+    from psycopg.types.json import Jsonb
+except ImportError:  # pragma: no cover - optional for offline-only installs
+    psycopg = None  # type: ignore[assignment]
+    Jsonb = None  # type: ignore[assignment,misc]
+
+
+_current_tenant: ContextVar[str] = ContextVar("finops_tenant", default="")
+
+
+def set_current_tenant(tenant_id: str) -> None:
+    """Bind the trusted request tenant to the current execution context."""
+    _current_tenant.set(tenant_id)
 
 
 @dataclass
@@ -137,6 +154,174 @@ class SQLiteRepository:
         )
 
 
+class PostgresRepository:
+    """PostgreSQL adapter with transaction-local tenant context and native RLS."""
+
+    _allowed_tables = {
+        "billing_line_item",
+        "semantic_version",
+        "query_run",
+        "result_artifact",
+        "anomaly_finding",
+        "governance_ticket",
+    }
+    _schema_ready: set[str] = set()
+
+    def __init__(self, database_url: str, table_name: str) -> None:
+        if psycopg is None:
+            raise RuntimeError("psycopg is required when FINOPS_DATABASE_URL is configured")
+        if table_name not in self._allowed_tables:
+            raise ValueError(f"unsupported repository table: {table_name}")
+        self.database_url = database_url
+        self.table_name = table_name
+        self._ensure_schema()
+
+    def _connect(self):
+        connection = psycopg.connect(self.database_url)
+        tenant = _current_tenant.get()
+        connection.execute("SELECT set_config('app.tenant_id', %s, true)", (tenant,))
+        return connection
+
+    def _ensure_schema(self) -> None:
+        if self.table_name in self._schema_ready:
+            return
+        with psycopg.connect(self.database_url) as connection:
+            connection.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS {self.table_name} (
+                    id TEXT PRIMARY KEY,
+                    idempotency_key TEXT UNIQUE NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 1,
+                    created_at DOUBLE PRECISION NOT NULL,
+                    updated_at DOUBLE PRECISION NOT NULL,
+                    audit_source TEXT NOT NULL,
+                    payload JSONB NOT NULL,
+                    tenant_id TEXT
+                )
+                """
+            )
+            connection.execute(f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS payload JSONB")
+            connection.execute(f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS tenant_id TEXT")
+            for column, sql_type in {
+                "source_id": "TEXT",
+                "currency": "TEXT",
+                "unit": "TEXT",
+                "amount": "NUMERIC",
+                "watermark": "TEXT",
+                "raw_ref": "TEXT",
+                "version_name": "TEXT",
+                "statement": "TEXT",
+                "state": "TEXT",
+                "query_id": "TEXT",
+                "value": "JSONB",
+                "provenance": "JSONB",
+                "finding_id": "TEXT",
+                "kind": "TEXT",
+                "severity": "TEXT",
+                "detail": "TEXT",
+                "status": "TEXT",
+            }.items():
+                connection.execute(
+                    f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS {column} {sql_type}"
+                )
+            connection.execute(f"ALTER TABLE {self.table_name} ENABLE ROW LEVEL SECURITY")
+            policy = f"{self.table_name}_tenant_isolation"
+            connection.execute(f"DROP POLICY IF EXISTS {policy} ON {self.table_name}")
+            connection.execute(
+                f"""
+                CREATE POLICY {policy} ON {self.table_name}
+                USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))
+                WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))
+                """
+            )
+        self._schema_ready.add(self.table_name)
+
+    @staticmethod
+    def _record(row: tuple[Any, ...]) -> Record:
+        payload = row[6] if isinstance(row[6], dict) else json.loads(row[6])
+        return Record(
+            id=row[0],
+            idempotency_key=row[1],
+            version=row[2],
+            created_at=row[3],
+            updated_at=row[4],
+            audit_source=row[5],
+            payload=payload,
+        )
+
+    def put(self, record: Record) -> Record:
+        tenant_id = record.payload.get("tenant_id") or _current_tenant.get()
+        payload = record.payload
+        projected = {
+            "source_id": payload.get("source_id"),
+            "currency": payload.get("currency"),
+            "unit": payload.get("unit"),
+            "amount": payload.get("amount"),
+            "watermark": payload.get("watermark"),
+            "raw_ref": payload.get("raw_ref"),
+            "version_name": payload.get("version_name"),
+            "statement": payload.get("statement"),
+            "state": payload.get("state") or payload.get("status"),
+            "query_id": payload.get("query_id"),
+            "value": Jsonb(payload.get("value")) if Jsonb and payload.get("value") is not None else None,
+            "provenance": Jsonb(payload.get("provenance")) if Jsonb and payload.get("provenance") is not None else None,
+            "finding_id": payload.get("finding_id"),
+            "kind": payload.get("kind"),
+            "severity": payload.get("severity"),
+            "detail": payload.get("detail"),
+            "status": payload.get("status"),
+        }
+        projection_columns = ", ".join(projected)
+        projection_values = ", ".join(["%s"] * len(projected))
+        updates = ", ".join(
+            f"{column} = COALESCE(EXCLUDED.{column}, {self.table_name}.{column})"
+            for column in projected
+        )
+        with self._connect() as connection:
+            row = connection.execute(
+                f"""
+                INSERT INTO {self.table_name}
+                    (id, idempotency_key, version, created_at, updated_at, audit_source, payload, tenant_id, {projection_columns})
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, {projection_values})
+                ON CONFLICT (idempotency_key) DO UPDATE SET
+                    payload = {self.table_name}.payload || EXCLUDED.payload,
+                    version = {self.table_name}.version + 1,
+                    updated_at = EXCLUDED.updated_at,
+                    {updates}
+                RETURNING id, idempotency_key, version, created_at, updated_at, audit_source, payload
+                """,
+                (record.id, record.idempotency_key, record.version, record.created_at,
+                 record.updated_at, record.audit_source, Jsonb(record.payload), tenant_id,
+                 *projected.values()),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("PostgreSQL repository upsert returned no row")
+            return self._record(row)
+
+    def _fetch_one(self, clause: str, value: str) -> Record | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                f"SELECT id, idempotency_key, version, created_at, updated_at, audit_source, payload "
+                f"FROM {self.table_name} WHERE {clause} = %s",
+                (value,),
+            ).fetchone()
+        return self._record(row) if row else None
+
+    def get(self, record_id: str) -> Record | None:
+        return self._fetch_one("id", record_id)
+
+    def find_by_idempotency_key(self, key: str) -> Record | None:
+        return self._fetch_one("idempotency_key", key)
+
+    def all(self) -> list[Record]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                f"SELECT id, idempotency_key, version, created_at, updated_at, audit_source, payload "
+                f"FROM {self.table_name} ORDER BY created_at, id"
+            ).fetchall()
+        return [self._record(row) for row in rows]
+
+
 @dataclass
 class Repositories:
     """契约声明的六张表统一装配点。"""
@@ -151,6 +336,15 @@ class Repositories:
     _factory_id: int = 0
 
     def __post_init__(self) -> None:
+        database_url = os.getenv("FINOPS_DATABASE_URL")
+        if database_url:
+            self.billing_line_item = PostgresRepository(database_url, "billing_line_item")
+            self.semantic_version = PostgresRepository(database_url, "semantic_version")
+            self.query_run = PostgresRepository(database_url, "query_run")
+            self.result_artifact = PostgresRepository(database_url, "result_artifact")
+            self.anomaly_finding = PostgresRepository(database_url, "anomaly_finding")
+            self.governance_ticket = PostgresRepository(database_url, "governance_ticket")
+            return
         database_path = os.getenv("FINOPS_DATABASE_PATH")
         if database_path:
             self.billing_line_item = SQLiteRepository(database_path, "billing_line_item")
@@ -161,6 +355,8 @@ class Repositories:
             self.governance_ticket = SQLiteRepository(database_path, "governance_ticket")
 
     def next_id(self, prefix: str) -> str:
+        if os.getenv("FINOPS_DATABASE_URL"):
+            return f"{prefix}-{uuid.uuid4().hex}"
         Repositories._factory_id += 1
         return f"{prefix}-{Repositories._factory_id:08d}"
 

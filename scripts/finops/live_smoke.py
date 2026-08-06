@@ -1,6 +1,7 @@
 """FinOps live smoke: 0 passed, 1 failed, 2 blocked."""
 from __future__ import annotations
 import argparse
+import json
 import os
 from pathlib import Path
 import sys
@@ -10,10 +11,12 @@ from urllib.parse import urlparse
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--component", choices=("health", "model"), default="health")
+    parser.add_argument("--component", choices=("health", "database", "model"), default="health")
     args = parser.parse_args(argv)
     if args.component == "model":
         return _model_smoke()
+    if args.component == "database":
+        return _database_smoke()
     base = os.getenv("FINOPS_BASE_URL", "").rstrip("/")
     if not base:
         print("BLOCKED: set FINOPS_BASE_URL")
@@ -55,6 +58,74 @@ def _model_smoke() -> int:
             return 2
         print(f"FAILED: real model validation ({exc.__class__.__name__})")
         return 1
+
+
+def _database_smoke() -> int:
+    base = os.getenv("FINOPS_BASE_URL", "").rstrip("/")
+    tenant = os.getenv("FINOPS_SMOKE_TENANT", "smoke-tenant")
+    if not base:
+        print("BLOCKED: set FINOPS_BASE_URL")
+        return 2
+    import uuid
+
+    source_id = "live-smoke-" + uuid.uuid4().hex
+    headers = {
+        "Content-Type": "application/json",
+        "X-Tenant-Id": tenant,
+        "X-Role": "analyst",
+        "X-Request-Id": "finops-database-smoke",
+    }
+    ingestion = {
+        "watermark": "2026-08-06T00:00:00Z",
+        "raw_lines": [{
+            "source_id": source_id,
+            "currency": "USD",
+            "unit": "unit",
+            "amount": "1.00",
+            "watermark": "2026-08-06T00:00:00Z",
+            "raw_ref": "focus://live-smoke",
+        }],
+    }
+    query = {
+        "statement": "SELECT amount FROM billing_line_item",
+        "allowed_resources": ["billing_line_item"],
+        "rows": [{"tenant_id": tenant, "amount": "999999"}],
+    }
+    try:
+        _request_json(f"{base}/billing-ingestions", ingestion, headers)
+        result = _request_json(f"{base}/queries", query, headers)
+        page = result.get("result", {}).get("page", [])
+        if not any(row.get("source_id") == source_id for row in page):
+            print("FAILED: database query did not return the ingested source row")
+            return 1
+        if any(str(row.get("amount")) == "999999" for row in page):
+            print("FAILED: client rows were used as a billing source")
+            return 1
+        print("PASSED: FinOps PostgreSQL billing write/query and tenant source isolation")
+        return 0
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403, 404, 503):
+            print(f"BLOCKED: service contract unavailable (HTTP {exc.code})")
+            return 2
+        print(f"FAILED: database smoke HTTP {exc.code}")
+        return 1
+    except urllib.error.URLError as exc:
+        print(f"BLOCKED: service unavailable ({exc.reason})")
+        return 2
+    except Exception as exc:
+        print(f"FAILED: database smoke ({exc.__class__.__name__})")
+        return 1
+
+
+def _request_json(url: str, payload: dict, headers: dict[str, str]) -> dict:
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def _bypass_proxy_for_model_host() -> None:
