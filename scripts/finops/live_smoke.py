@@ -1,13 +1,18 @@
 """FinOps live smoke: 0 passed, 1 failed, 2 blocked."""
 from __future__ import annotations
+
 import argparse
+import hashlib
+import hmac
 import json
 import os
-from pathlib import Path
 import sys
+import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from urllib.parse import urlparse
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
@@ -29,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     except urllib.error.URLError as exc:
         print(f"BLOCKED: service unavailable ({exc.reason})")
         return 2
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         print(f"FAILED: {exc.__class__.__name__}")
         return 1
 
@@ -52,7 +57,7 @@ def _model_smoke() -> int:
             return 1
         print(f"PASSED: FinOps real intent model; kind={intent.kind}")
         return 0
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
         if "URLError" in str(exc) or "Timeout" in str(exc):
             print(f"BLOCKED: model service unavailable ({exc.__class__.__name__})")
             return 2
@@ -69,12 +74,12 @@ def _database_smoke() -> int:
     import uuid
 
     source_id = "live-smoke-" + uuid.uuid4().hex
-    headers = {
-        "Content-Type": "application/json",
-        "X-Tenant-Id": tenant,
-        "X-Role": "analyst",
-        "X-Request-Id": "finops-database-smoke",
-    }
+    other_source_id = source_id
+    other_tenant = f"{tenant}-other"
+    headers = _identity_headers(tenant, "analyst", "finops-database-smoke")
+    if headers is None:
+        print("BLOCKED: set FINOPS_IDENTITY_SECRET for signed identity mode")
+        return 2
     ingestion = {
         "watermark": "2026-08-06T00:00:00Z",
         "raw_lines": [{
@@ -86,6 +91,21 @@ def _database_smoke() -> int:
             "raw_ref": "focus://live-smoke",
         }],
     }
+    other_headers = _identity_headers(other_tenant, "analyst", "finops-database-smoke-other")
+    if other_headers is None:
+        print("BLOCKED: set FINOPS_IDENTITY_SECRET for signed identity mode")
+        return 2
+    other_ingestion = {
+        "watermark": "2026-08-06T00:00:00Z",
+        "raw_lines": [{
+            "source_id": other_source_id,
+            "currency": "USD",
+            "unit": "unit",
+            "amount": "2.00",
+            "watermark": "2026-08-06T00:00:00Z",
+            "raw_ref": "focus://live-smoke-other-tenant",
+        }],
+    }
     query = {
         "statement": "SELECT amount FROM billing_line_item",
         "allowed_resources": ["billing_line_item"],
@@ -93,6 +113,7 @@ def _database_smoke() -> int:
     }
     try:
         _request_json(f"{base}/billing-ingestions", ingestion, headers)
+        _request_json(f"{base}/billing-ingestions", other_ingestion, other_headers)
         result = _request_json(f"{base}/queries", query, headers)
         page = result.get("result", {}).get("page", [])
         if not any(row.get("source_id") == source_id for row in page):
@@ -100,6 +121,9 @@ def _database_smoke() -> int:
             return 1
         if any(str(row.get("amount")) == "999999" for row in page):
             print("FAILED: client rows were used as a billing source")
+            return 1
+        if any(str(row.get("amount")) in {"2", "2.0", "2.00"} for row in page):
+            print("FAILED: cross-tenant billing row was visible")
             return 1
         print("PASSED: FinOps PostgreSQL billing write/query and tenant source isolation")
         return 0
@@ -112,7 +136,7 @@ def _database_smoke() -> int:
     except urllib.error.URLError as exc:
         print(f"BLOCKED: service unavailable ({exc.reason})")
         return 2
-    except Exception as exc:
+    except (KeyError, OSError, TypeError, ValueError) as exc:
         print(f"FAILED: database smoke ({exc.__class__.__name__})")
         return 1
 
@@ -126,6 +150,27 @@ def _request_json(url: str, payload: dict, headers: dict[str, str]) -> dict:
     )
     with urllib.request.urlopen(request, timeout=15) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def _identity_headers(tenant: str, role: str, request_id: str) -> dict[str, str] | None:
+    headers = {
+        "Content-Type": "application/json",
+        "X-Tenant-Id": tenant,
+        "X-Role": role,
+        "X-Request-Id": request_id,
+    }
+    if os.getenv("FINOPS_IDENTITY_MODE", "offline").lower() != "signed":
+        return headers
+    secret = os.getenv("FINOPS_IDENTITY_SECRET", "")
+    if not secret:
+        return None
+    timestamp = str(int(time.time()))
+    message = f"{tenant}\n{role}\n{request_id}\n{timestamp}".encode()
+    headers["X-Identity-Timestamp"] = timestamp
+    headers["X-Identity-Signature"] = hmac.new(
+        secret.encode(), message, hashlib.sha256
+    ).hexdigest()
+    return headers
 
 
 def _bypass_proxy_for_model_host() -> None:

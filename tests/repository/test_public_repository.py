@@ -1,7 +1,6 @@
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 REQUIRED_SECTIONS = (
     "## 项目简介与适用场景",

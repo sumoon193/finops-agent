@@ -12,15 +12,12 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.finops.api import app, repos
-from app.finops.anomaly.attribution import AnomalyFinding
 from app.finops.kernel import Command, IdentityContext, RuntimeKernel
 from app.finops.persistence import Record
 
@@ -207,6 +204,23 @@ def test_cross_tenant_cancel_is_forbidden():
     response = CLIENT.delete(f"/queries/{query_id}", headers=OTHER_HEADERS)
     assert response.status_code == 403
     assert response.json()["detail"]["error"] == "cross_tenant_denied"
+
+
+def test_completed_cancel_does_not_write_recovery_ledger(monkeypatch):
+    query_id = _create_query(HEADERS)
+    calls = []
+
+    class Guard:
+        def execute(self, *_args, **_kwargs):
+            calls.append(True)
+            raise AssertionError("completed query must not enter recovery ledger")
+
+    monkeypatch.setattr("app.finops.recovery.ledger.IdentityContext", lambda: Guard())
+    response = CLIENT.delete(f"/queries/{query_id}", headers=HEADERS)
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["error"] == "query_not_running"
+    assert calls == []
 
 
 def test_cancel_unknown_query_is_not_found():

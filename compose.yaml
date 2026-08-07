@@ -21,6 +21,8 @@ services:
       dockerfile: docker/Dockerfile
     environment:
       FINOPS_DATABASE_URL: postgresql://finops:finops_local@postgres:5432/finops
+      FINOPS_IDENTITY_MODE: signed
+      FINOPS_IDENTITY_SECRET: ${FINOPS_IDENTITY_SECRET:-finops_local_identity_only_change_me}
       FINOPS_AGENT_MODE: ${FINOPS_AGENT_MODE:-offline}
       FINOPS_TICKET_ADAPTER: ${FINOPS_TICKET_ADAPTER:-offline}
       QWEN_API_KEY: ${QWEN_API_KEY:-}

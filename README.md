@@ -1,221 +1,237 @@
 # FinOps Agent
 
+FinOps Agent 是一个面向云成本分析和治理的 FastAPI 服务。账单先进入服务端受信存储，再经过 FOCUS 规范化、租户隔离、只读 AST 校验、预算控制和分页执行。自然语言模型只负责生成类型化查询意图，不能直接生成或执行 SQL。
+
+项目提供离线内存/SQLite 适配器，也提供 PostgreSQL + 原生 RLS 的生产装配。两种模式的测试和 live smoke 分开记录；离线适配器通过不代表真实数据库、账单来源或工单系统已经验证。
+
 ## 项目简介与适用场景
 
-FinOps Agent 是一个面向云成本分析和治理的 FastAPI 服务。它从受信任的账单入口接收数据，以租户身份执行只读查询，并把预算控制、分页、缓存、审计、异常分析和工单流程组织在同一条可追踪链路中。
-
-模型只负责把自然语言转换为类型化意图。实际数据必须来自服务端账单仓储，查询必须通过语义目录、AST 白名单、租户过滤和预算校验，客户端提交的数据不能绕过这些限制。
+上面的说明定义了服务适用的云成本查询和治理边界。
 
 ## 功能清单
 
-- 接收并规范化 FOCUS 风格账单数据，保留来源 ID、水位线和原始引用。
-- 所有业务请求要求可信 `X-Tenant-Id`，查询结果按租户隔离。
-- 支持语义目录版本、类型化意图和允许的查询类型。
-- AST 门禁仅允许只读查询，拒绝 DDL、DML、函数和非白名单资源。
-- 查询前执行成本预算检查，执行结果支持稳定分页和缓存。
-- 查询运行、结果、异常和工单包含幂等键、版本、时间戳和审计来源。
-- 已完成任务不能伪造为 cancelled；运行中的取消操作走持久化状态校验。
-- 支持 UNKNOWN 副作用账本、恢复和回滚脚本。
-- Qwen 意图解析和离线确定性解析相互独立，真实验证不会静默降级。
+- FOCUS 风格账单导入，保留来源 ID、水位线和原始引用。
+- PostgreSQL 持久化账单、查询、结果、异常和工单记录，租户上下文通过事务级 `set_config` 注入。
+- 原生 RLS 和 `FORCE ROW LEVEL SECURITY` 防止跨租户读取。
+- 自然语言意图解析、语义目录版本和 AST 只读门禁。
+- 预算、超时、CAS 状态推进、稳定分页和结果缓存。
+- 运行取消只能作用于持久化中的 `running` 任务，已完成任务不可改写。
+- UNKNOWN 副作用账本、恢复脚本和 GitHub Issues 工单适配器。
+- Qwen 和 GitHub 授权缺失时明确返回 blocked，不静默使用假适配器。
 
 ## 系统架构与核心流程
 
-```text
-账单来源 -> 受信任导入 -> FOCUS 规范化 -> 租户仓储/水位线
-                                            |
-自然语言 -> 类型化意图 -> 语义目录 -> AST 只读校验 -> RLS/租户过滤
-                                            |
-                         预算检查 -> 查询执行 -> 分页/缓存 -> 审计溯源
-                                            |
-                                异常发现 -> 审批 -> 工单适配器
+```mermaid
+flowchart LR
+    Source[FOCUS CSV / 账单来源] --> Import[受信导入]
+    Import --> Normalize[FOCUS 规范化]
+    Normalize --> PG[(PostgreSQL + RLS)]
+    User[自然语言问题] --> Model[Qwen 意图解析]
+    Model --> Catalog[语义目录]
+    Catalog --> AST[只读 AST 门禁]
+    AST --> Plan[预算与授权计划]
+    Plan --> PG
+    PG --> Result[分页结果与审计]
+    Finding[异常发现] --> Ticket[GitHub Issues / 人工工单]
 ```
 
-默认仓储为内存实现，适合离线开发；设置 `FINOPS_DATABASE_PATH` 后使用 SQLite 持久化适配器。PostgreSQL/RLS 可以通过相同 Repository 契约接入，但在没有真实数据库验证时不会被标记为已通过。
+生产 API 不接受客户端提交的 `rows` 作为查询数据源。该字段仅为兼容旧调用保留，服务端查询始终从受信仓储读取。
 
 ## 技术栈与运行依赖
 
-- Python 3.12、FastAPI、Pydantic
-- SQLite 持久化适配器、Repository 契约
-- FOCUS 账单规范、AST 只读校验、租户隔离
-- Qwen/DashScope 兼容接口
-- Pytest、Compileall
+| 分类 | 组件 |
+| --- | --- |
+| API | Python 3.12、FastAPI、Pydantic |
+| 数据 | PostgreSQL 16、psycopg、原生 RLS；离线可选 SQLite |
+| 账单 | FOCUS 规范化、来源适配器 |
+| 查询 | 语义目录、只读 SQL AST、预算和分页 |
+| 模型与工单 | Qwen/DashScope、GitHub Issues |
+| 质量 | Pytest、Ruff、Compileall、Docker Compose |
 
 ## 目录结构说明
 
 ```text
-app/finops/api.py              HTTP API 和身份解析
-app/finops/ingestion/          账单来源适配器
-app/finops/focus/              FOCUS 规范化
-app/finops/catalog/            语义目录和版本
-app/finops/intent/             类型化模型意图
+app/finops/api.py              HTTP API、身份签名和状态装配
+app/finops/persistence.py      内存、SQLite、PostgreSQL 仓储
+app/finops/security/           身份解析和 RLS 计划
+app/finops/focus/              FOCUS 账单规范化
+app/finops/intent/             Qwen/离线意图模型
 app/finops/query/              AST、预算和执行计划
-app/finops/security/           租户身份和 RLS 语义
-app/finops/persistence.py      内存与 SQLite 仓储
+app/finops/results/            结果缓存和分页
 app/finops/anomaly/            异常归因
-app/finops/tickets/            工单编排
+app/finops/tickets/            工单适配器和幂等
 app/finops/recovery/           UNKNOWN 与恢复账本
-scripts/finops/                live smoke 和回滚脚本
-tests/                         单元、契约和 API 测试
+migrations/finops/             PostgreSQL 表和 RLS 迁移
+scripts/finops/                FOCUS 导入、live smoke、回滚
+tests/                         API、契约、安全和恢复测试
+compose.yaml                   PostgreSQL 与 API 集成环境
 ```
 
 ## 环境要求
 
 - Python 3.12+
-- 真实模型验证需要 `QWEN_API_KEY` 和 `QWEN_CHAT_MODEL`
-- 可选 SQLite 文件用于跨进程持久化
-- PostgreSQL、云账单和工单系统属于可替换外部适配器，需要单独部署和授权
+- Docker Desktop，用于 PostgreSQL 和 API 集成环境
+- Qwen 验证需要 `QWEN_API_KEY` 和 `QWEN_CHAT_MODEL`
+- GitHub 工单验证需要 `GITHUB_TOKEN`、仓库名和 Issue 写权限
 
 ## 本地快速启动
 
-Windows PowerShell：
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[server]"
-python -m pip install pytest
-python -m uvicorn app.finops.api:app --host 127.0.0.1 --port 8002
-```
-
-Linux/macOS：
+离线模式：
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e '.[server]'
-python -m pip install pytest
+python -m venv .venv
+python -m pip install -e ".[server]"
 python -m uvicorn app.finops.api:app --host 127.0.0.1 --port 8002
 ```
 
-接口文档地址为 <http://127.0.0.1:8002/docs>，健康检查为 <http://127.0.0.1:8002/health>。
+接口文档为 http://127.0.0.1:8002/docs，健康检查为 http://127.0.0.1:8002/health。
 
-## Docker 或中间件启动方式
-
-当前服务不强制依赖 Docker。默认内存仓储和 SQLite 适配器可直接运行；真实 PostgreSQL、账单来源和工单系统应独立部署，再通过项目端口契约接入。
-
-### 持久化与外部依赖
-
-默认数据随进程结束清空。需要保留本地数据时：
+本地持久化可设置：
 
 ```powershell
 New-Item -ItemType Directory -Force .\runtime | Out-Null
 $env:FINOPS_DATABASE_PATH = ".\runtime\finops.db"
-python -m uvicorn app.finops.api:app --host 127.0.0.1 --port 8002
 ```
 
-真实 PostgreSQL、账单来源和工单系统应实现项目中的 Repository、账单适配器和 Ticket Service 契约。未配置时仍可运行完整离线测试，但不代表这些外部系统已经验收。
+## Docker 或中间件启动方式
+
+启动真实 PostgreSQL 和 API：
+
+```bash
+docker compose -p finops-production-v1 up -d --build --wait
+```
+
+服务地址：
+
+| 服务 | 地址 |
+| --- | --- |
+| API | http://127.0.0.1:8002 |
+| PostgreSQL | `127.0.0.1:5434` |
+
+Compose 使用 `FINOPS_IDENTITY_MODE=signed`。生产环境必须通过外部 Secret 替换默认身份密钥，并由认证网关生成签名头，不能让公网客户端自报租户。
+
+停止环境：
+
+```bash
+docker compose -p finops-production-v1 down
+```
 
 ## 配置项和环境变量
 
-| 变量 | 默认值 | 说明 |
+| 变量 | 默认值 | 用途 |
 | --- | --- | --- |
-| `FINOPS_BASE_URL` | 空 | live smoke 使用的服务地址 |
-| `FINOPS_DATABASE_PATH` | 空 | SQLite 数据库路径；为空时使用内存仓储 |
-| `QWEN_API_KEY` | 空 | Qwen API 密钥，不要提交 |
-| `QWEN_CHAT_MODEL` | 空 | 文本模型名称 |
-| `QWEN_BASE_URL` | DashScope 兼容地址 | OpenAI-compatible API 地址 |
-| `X-Tenant-Id` | 无 | 必填的可信租户请求头 |
-| `X-Role` | `analyst` | 调用方角色 |
-| `X-Request-Id` | 空 | 请求关联 ID，用于审计和 Trace |
+| `FINOPS_BASE_URL` | 空 | live smoke 服务地址 |
+| `FINOPS_DATABASE_URL` | 空 | PostgreSQL 连接串；设置后启用真实仓储 |
+| `FINOPS_DATABASE_PATH` | 空 | SQLite 文件；只用于离线持久化 |
+| `FINOPS_IDENTITY_MODE` | `offline` | `signed` 启用 HMAC 身份校验 |
+| `FINOPS_IDENTITY_SECRET` | 空 | 签名身份密钥，不得提交 |
+| `FINOPS_IDENTITY_MAX_AGE_SECONDS` | `300` | 签名有效期 |
+| `QWEN_API_KEY` | 空 | Qwen 密钥，不得提交 |
+| `QWEN_CHAT_MODEL` | `qwen-plus` | 文本模型 |
+| `QWEN_BASE_URL` | DashScope 兼容地址 | 模型 API 地址 |
+| `GITHUB_TOKEN` | 空 | GitHub Issues 授权 |
+| `GITHUB_REPOSITORY` | 空 | `owner/repository` |
 
 ## 主要 API
 
-| 方法 | 路径 | 用途 |
+| 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/health` | 健康检查 |
-| `POST` | `/billing-ingestions` | 导入受信任账单行 |
-| `POST` | `/queries` | 创建只读成本查询 |
-| `GET` | `/queries/{query_id}/trace` | 查询运行溯源 |
-| `DELETE` | `/queries/{query_id}` | 取消仍在运行的查询 |
-| `POST` | `/findings/{finding_id}/tickets` | 为异常发现创建工单 |
+| `POST` | `/billing-ingestions` | 导入账单 |
+| `POST` | `/queries` | 创建只读查询 |
+| `GET` | `/queries/{query_id}/trace` | 查询执行溯源 |
+| `DELETE` | `/queries/{query_id}` | 取消运行中的查询 |
+| `POST` | `/findings/{finding_id}/tickets` | 创建异常工单 |
 
-除健康检查外，请求均应携带 `X-Tenant-Id`。生产部署中该请求头应由认证网关或服务端身份组件写入，不能直接信任公网客户端。
-
-## 请求示例与返回结果
+除健康检查外，生产模式请求需要 `X-Tenant-Id`、`X-Role`、`X-Request-Id`，并在 signed 模式额外携带 `X-Identity-Timestamp` 和 `X-Identity-Signature`。
 
 ### 导入账单
 
-```powershell
-curl.exe -X POST http://127.0.0.1:8002/billing-ingestions `
-  -H "Content-Type: application/json" `
-  -H "X-Tenant-Id: tenant-demo" `
-  -H "X-Request-Id: request-001" `
-  -d '{"watermark":"2026-08-01T00:00:00Z","raw_lines":[{"source_id":"aws-line-001","currency":"USD","unit":"cost","amount":"18.75","watermark":"2026-08-01T00:00:00Z","raw_ref":"s3://example-bucket/billing.csv#2"}]}'
+```bash
+curl -X POST http://127.0.0.1:8002/billing-ingestions \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-demo" \
+  -H "X-Role: analyst" \
+  -H "X-Request-Id: request-001" \
+  -d '{"watermark":"2026-08-01T00:00:00Z","raw_lines":[{"source_id":"aws-line-001","currency":"USD","unit":"cost","amount":"18.75","watermark":"2026-08-01T00:00:00Z","raw_ref":"focus://billing.csv#2"}]}'
 ```
-
-响应包含导入数量、水位线和来源 ID。相同来源和水位线通过幂等键更新，不重复创建账单行。
 
 ### 创建只读查询
 
-```powershell
-curl.exe -X POST http://127.0.0.1:8002/queries `
-  -H "Content-Type: application/json" `
-  -H "X-Tenant-Id: tenant-demo" `
-  -H "X-Request-Id: request-002" `
-  -d '{"statement":"SELECT amount, currency FROM billing_line_item","params":{},"page_size":50,"catalog_version":"2024-07","estimated_cost":"2.50","budget_limit":"100.00","allowed_resources":["billing_line_item"]}'
+```bash
+curl -X POST http://127.0.0.1:8002/queries \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-Id: tenant-demo" \
+  -H "X-Role: analyst" \
+  -H "X-Request-Id: request-002" \
+  -d '{"statement":"SELECT amount, currency FROM billing_line_item","page_size":50,"catalog_version":"2024-07","estimated_cost":"2.50","budget_limit":"100.00","allowed_resources":["billing_line_item"]}'
 ```
 
-响应包含 `query_id`、当前页、下一页游标和 provenance。兼容字段 `rows` 已废弃，即使客户端提交也不会成为查询数据源。
+`rows` 即使存在于请求中也不会作为数据源。返回值包含 `query_id`、分页游标和 provenance。
 
-### 查询 Trace
+## 请求示例与返回结果
 
-```powershell
-curl.exe http://127.0.0.1:8002/queries/{query_id}/trace `
-  -H "X-Tenant-Id: tenant-demo" `
-  -H "X-Request-Id: request-002"
-```
+上面的 API 示例即为本地请求和返回合同；详细响应包含 `correlation_id`、状态和 provenance。
 
 ## 离线测试
 
-```powershell
+```bash
 python -m pytest -q
 python -m compileall -q app tests scripts
+ruff check app tests scripts
 ```
 
-离线测试使用本地账单、仓储和工单适配器，不访问云厂商、模型或真实工单平台。
+离线测试使用显式本地适配器，不访问 PostgreSQL、Qwen 或 GitHub。它们只验证状态机、AST、租户合同和幂等语义。
 
 ## 真实服务验证
 
+启动 Compose 后执行：
+
 ```powershell
 $env:FINOPS_BASE_URL = "http://127.0.0.1:8002"
+$env:FINOPS_IDENTITY_MODE = "signed"
+$env:FINOPS_IDENTITY_SECRET = "仅用于本机测试的随机值"
 python .\scripts\finops\live_smoke.py --component health
+python .\scripts\finops\live_smoke.py --component database
+```
+
+真实模型需要另外设置 `QWEN_API_KEY` 和 `QWEN_CHAT_MODEL`：
+
+```powershell
 python .\scripts\finops\live_smoke.py --component model
 ```
 
-模型验证前设置：
-
-```powershell
-$env:QWEN_API_KEY = "本地密钥"
-$env:QWEN_CHAT_MODEL = "qwen-plus"
-```
-
-当前 live smoke 覆盖 API 健康检查和真实模型意图解析。数据库、账单来源、异常系统和工单平台应由各自适配器的独立 smoke 验证。退出码 `0` 为通过，`1` 为连接后验证失败，`2` 为缺少服务或授权。
+`database` smoke 会写入两个租户、查询真实 PostgreSQL，并确认客户端伪造 `rows` 不会出现在结果中。退出码 `0` 表示通过，`1` 表示连接后校验失败，`2` 表示缺少服务、密钥或授权。账单来源和 GitHub Issues 仍需各自独立 smoke。
 
 ## 常见问题与故障排查
 
-### API 返回 missing trusted X-Tenant-Id
+### missing trusted X-Tenant-Id
 
-在业务请求中添加 `X-Tenant-Id`。生产环境应由可信网关注入，不要把客户端自报的租户 ID 直接当作身份依据。
+请求缺少租户头。生产环境应由认证网关注入，不能直接信任浏览器传来的租户值。
+
+### signed identity 校验失败
+
+检查签名使用的租户、角色、请求 ID 和时间戳是否与服务端完全一致，时间戳不能超过 `FINOPS_IDENTITY_MAX_AGE_SECONDS`。
 
 ### 查询返回 AST violation
 
-只允许 `SELECT` 和 `allowed_resources` 中的资源。删除 DDL、DML、函数调用或未授权表名后重试。
+只允许语义目录中的 `SELECT`、白名单资源和参数化条件；删除 DDL、DML、函数调用或未知表名。
 
 ### 取消查询返回 409
 
-只有持久化状态仍为 `running` 的任务可以取消。已经 `completed`、`cancelled` 或失败的任务不会被改写为 cancelled。
+只有持久化状态为 `running` 的任务可以取消。已完成、失败或已取消任务不会被改写。
 
-### 重启后找不到数据
+### 工单 smoke blocked
 
-设置 `FINOPS_DATABASE_PATH` 使用 SQLite 文件。默认内存仓储只用于本地和测试。
+确认 `GITHUB_TOKEN` 具有目标仓库 Issues 权限，并设置 `GITHUB_REPOSITORY`。缺少授权时保持 blocked，不创建假工单。
 
 ## 安全边界和生产注意事项
 
-- 不提交 `.env`、API key、Cookie、Token、私有账单、工单内容或运行日志。
-- 模型生成的意图必须经过目录版本和 AST 只读校验。
-- 客户端提交的 `rows` 永远不能替代受信任账单仓储。
-- 租户身份、RLS、预算和分页均由服务端执行。
-- 离线适配器通过不代表真实云账单、数据库或工单系统已经连通。
+- 不提交 `.env`、API key、Cookie、Token、私有账单和日志。
+- 生产 PostgreSQL 必须启用并强制执行 RLS，连接角色不能绕过策略。
+- 查询 AST、预算、分页和结果 provenance 由服务端执行。
+- 模型不能绕过 AST 直接执行 SQL，客户端 `rows` 不能替代账单仓储。
+- 当前缺少完整业务前端、三轮评测、压测、故障注入和公网稳定性观察，不能标记为 deployment-ready。
 
 ## License
 

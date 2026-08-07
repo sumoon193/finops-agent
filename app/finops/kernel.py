@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable
+from typing import Any
 
 # 契约声明的唯一合法状态序列。
 LEGAL_STATES: tuple[str, ...] = (
@@ -63,7 +64,7 @@ class IdentityContext:
     role: str = "analyst"
     request_id: str = field(default_factory=lambda: uuid.uuid4().hex[:16])
 
-    def with_role(self, role: str) -> "IdentityContext":
+    def with_role(self, role: str) -> IdentityContext:
         return IdentityContext(tenant_id=self.tenant_id, role=role, request_id=self.request_id)
 
 

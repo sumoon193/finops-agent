@@ -3,9 +3,9 @@
 import pytest
 
 from app.finops.query.execution.planner import (
+    AuthorizedQueryPlan,
     FO06Input,
     FO06Result,
-    AuthorizedQueryPlan,
     QueryPlan,
     StateMachine,
 )

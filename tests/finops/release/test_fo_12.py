@@ -2,7 +2,11 @@
 
 from pathlib import Path
 
-from scripts.finops.rollback import FO12Input, FO12Result, AdapterRegistry, AuthorizedQueryPlan
+from scripts.finops.rollback import (
+    AuthorizedQueryPlan,
+    FO12Input,
+    FO12Result,
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 

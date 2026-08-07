@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.finops.security.identity import IdentityContext
-from app.finops.security.rls import FO03Input, FO03Result, AuthorizedQueryPlan
+from app.finops.security.rls import AuthorizedQueryPlan, FO03Input, FO03Result
 
 ROOT = Path(__file__).resolve().parents[3]
 

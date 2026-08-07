@@ -1,7 +1,12 @@
 """FO-09 异常归因与 GovernanceTicket：异常 finding 只经审批创建幂等人工工单。"""
 
 from app.finops.anomaly.attribution import AnomalyFinding
-from app.finops.tickets.service import FO09Input, FO09Result, AuthorizedQueryPlan, TicketService
+from app.finops.tickets.service import (
+    AuthorizedQueryPlan,
+    FO09Input,
+    FO09Result,
+    TicketService,
+)
 
 FINDING = AnomalyFinding(
     finding_id="f1",

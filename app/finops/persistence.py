@@ -1,16 +1,15 @@
 """可追溯内存仓储：实现契约要求的六张数据表的审计字段语义。
 
 契约要求每张表「必须有主键、版本/幂等键、创建更新时间与审计来源」。
-本项目默认离线、不接入真实数据库（FO-13 unverified），因此用内存仓储落地
-同一审计语义：每条记录携带 ``id``（主键）、``idempotency_key``（幂等键）、
+离线模式使用内存或 SQLite，配置 ``FINOPS_DATABASE_URL`` 后装配 PostgreSQL
+和原生 RLS。所有实现保留同一审计语义：每条记录携带 ``id``（主键）、``idempotency_key``（幂等键）、
 ``version``（版本）、``created_at/updated_at`` 与 ``audit_source``。
 
 跨模块不变量 #4：外部依赖必须有 Fake 或 Recorded adapter。这里的
 ``AuditRepository`` 就是被整个领域复用的「结果存储适配器」，action_id 与 effect_id
 经 ledger 幂等去重，符合不变量 #2（副作用必须幂等并处理 UNKNOWN 对账）。
 
-真实数据库连接替换时（FO-12），只需实现 ``RepositoryProtocol`` 并注入即可，
-领域代码不变。
+领域代码只依赖 ``RepositoryProtocol``，不会因存储实现切换而改变查询合同。
 """
 
 from __future__ import annotations
@@ -24,7 +23,7 @@ import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, ClassVar, Protocol
 
 try:
     import psycopg
@@ -157,15 +156,15 @@ class SQLiteRepository:
 class PostgresRepository:
     """PostgreSQL adapter with transaction-local tenant context and native RLS."""
 
-    _allowed_tables = {
+    _allowed_tables: ClassVar[frozenset[str]] = frozenset({
         "billing_line_item",
         "semantic_version",
         "query_run",
         "result_artifact",
         "anomaly_finding",
         "governance_ticket",
-    }
-    _schema_ready: set[str] = set()
+    })
+    _schema_ready: ClassVar[set[str]] = set()
 
     def __init__(self, database_url: str, table_name: str) -> None:
         if psycopg is None:
@@ -190,18 +189,27 @@ class PostgresRepository:
                 f"""
                 CREATE TABLE IF NOT EXISTS {self.table_name} (
                     id TEXT PRIMARY KEY,
-                    idempotency_key TEXT UNIQUE NOT NULL,
+                    idempotency_key TEXT NOT NULL,
                     version INTEGER NOT NULL DEFAULT 1,
                     created_at DOUBLE PRECISION NOT NULL,
                     updated_at DOUBLE PRECISION NOT NULL,
                     audit_source TEXT NOT NULL,
                     payload JSONB NOT NULL,
-                    tenant_id TEXT
+                    tenant_id TEXT,
+                    UNIQUE (tenant_id, idempotency_key)
                 )
                 """
             )
             connection.execute(f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS payload JSONB")
             connection.execute(f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS tenant_id TEXT")
+            connection.execute(
+                f"ALTER TABLE {self.table_name} DROP CONSTRAINT IF EXISTS "
+                f"{self.table_name}_idempotency_key_key"
+            )
+            connection.execute(
+                f"CREATE UNIQUE INDEX IF NOT EXISTS ux_{self.table_name}_tenant_idempotency "
+                f"ON {self.table_name} (tenant_id, idempotency_key)"
+            )
             for column, sql_type in {
                 "source_id": "TEXT",
                 "currency": "TEXT",
@@ -225,6 +233,8 @@ class PostgresRepository:
                     f"ALTER TABLE {self.table_name} ADD COLUMN IF NOT EXISTS {column} {sql_type}"
                 )
             connection.execute(f"ALTER TABLE {self.table_name} ENABLE ROW LEVEL SECURITY")
+            # Table owners bypass RLS unless FORCE is enabled.
+            connection.execute(f"ALTER TABLE {self.table_name} FORCE ROW LEVEL SECURITY")
             policy = f"{self.table_name}_tenant_isolation"
             connection.execute(f"DROP POLICY IF EXISTS {policy} ON {self.table_name}")
             connection.execute(
@@ -283,7 +293,7 @@ class PostgresRepository:
                 INSERT INTO {self.table_name}
                     (id, idempotency_key, version, created_at, updated_at, audit_source, payload, tenant_id, {projection_columns})
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, {projection_values})
-                ON CONFLICT (idempotency_key) DO UPDATE SET
+                ON CONFLICT (tenant_id, idempotency_key) DO UPDATE SET
                     payload = {self.table_name}.payload || EXCLUDED.payload,
                     version = {self.table_name}.version + 1,
                     updated_at = EXCLUDED.updated_at,

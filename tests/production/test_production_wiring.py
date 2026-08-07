@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -13,6 +12,8 @@ def test_production_compose_declares_postgres_and_healthcheck() -> None:
     assert "postgres:" in compose
     assert "healthcheck:" in compose
     assert "FINOPS_DATABASE_URL" in compose
+    assert "FINOPS_IDENTITY_MODE: signed" in compose
+    assert "FINOPS_IDENTITY_SECRET" in compose
 
 
 def test_production_repository_uses_postgres_url_and_rls_session_context() -> None:
@@ -23,6 +24,10 @@ def test_production_repository_uses_postgres_url_and_rls_session_context() -> No
     assert "FINOPS_DATABASE_URL" in persistence
     assert "set_config" in migrations
     assert "ENABLE ROW LEVEL SECURITY" in migrations
+    assert "FORCE ROW LEVEL SECURITY" in persistence
+    assert "FORCE ROW LEVEL SECURITY" in migrations
+    assert "UNIQUE (tenant_id, idempotency_key)" in persistence
+    assert "ON CONFLICT (tenant_id, idempotency_key)" in persistence
 
 
 def test_production_api_does_not_use_client_rows_as_query_source() -> None:

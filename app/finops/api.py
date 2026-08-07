@@ -13,14 +13,17 @@
 - #1 服务端身份由 ``resolve_identity`` 从受信头构造，客户端模型不可覆盖。
 - #2 工单创建经 TicketService 幂等并记账。
 - #3 查询状态推进经 kernel.advance + CAS 状态机。
-- #4 外部依赖（模型、DB）以 Fake/Recorded adapter 实现，真实接入列为 unverified。
+- #4 外部依赖按运行模式显式装配；PostgreSQL 与真实模型失败时不得静默降级。
 - #5 结果带 provenance，证据不足保持 blocked/review。
 """
 
 from __future__ import annotations
 
-from decimal import Decimal
+import hashlib
+import hmac
 import os
+import time
+from decimal import Decimal
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, status
@@ -28,18 +31,28 @@ from pydantic import BaseModel, Field
 
 from app.finops.anomaly.attribution import AnomalyFinding
 from app.finops.catalog.registry import SemanticCatalog
-from app.finops.focus.canonical import QueryIntent as FocusQueryIntent, FO02Input as NormalizeInput
-from app.finops.intent.model import IdentityContext as IntentIdentityContext, FO04Input as IntentInput
-from app.finops.kernel import IdentityContext, RuntimeKernel, Command
-from app.finops.persistence import Record, Repositories, set_current_tenant
+from app.finops.focus.canonical import FO02Input as NormalizeInput
+from app.finops.focus.canonical import QueryIntent as FocusQueryIntent
+from app.finops.intent.model import FO04Input as IntentInput
+from app.finops.intent.model import IdentityContext as IntentIdentityContext
 from app.finops.intent.model import ModelUnavailableError, RealIntentModel
-from app.finops.query.ast.guard import QueryIntent as AstGuard, FO05Input as AstInput
-from app.finops.query.budget.controller import IdentityContext as BudgetContext, FO07Input as BudgetInput
-from app.finops.query.execution.planner import AuthorizedQueryPlan as ExecPlan, FO06Input as ExecInput
-from app.finops.results.store import QueryIntent as ResultsIntent, FO08Input as ResultsInput, ResultCache
-from app.finops.security.rls import AuthorizedQueryPlan as RlsPlan, FO03Input as RlsInput
-from app.finops.tickets.service import AuthorizedQueryPlan as TicketPlan, FO09Input as TicketInput, TicketService
+from app.finops.kernel import IdentityContext, RuntimeKernel
 from app.finops.observability.sink import ObservabilitySink
+from app.finops.persistence import Record, Repositories, set_current_tenant
+from app.finops.query.ast.guard import FO05Input as AstInput
+from app.finops.query.ast.guard import QueryIntent as AstGuard
+from app.finops.query.budget.controller import FO07Input as BudgetInput
+from app.finops.query.budget.controller import IdentityContext as BudgetContext
+from app.finops.query.execution.planner import AuthorizedQueryPlan as ExecPlan
+from app.finops.query.execution.planner import FO06Input as ExecInput
+from app.finops.results.store import FO08Input as ResultsInput
+from app.finops.results.store import QueryIntent as ResultsIntent
+from app.finops.results.store import ResultCache
+from app.finops.security.rls import AuthorizedQueryPlan as RlsPlan
+from app.finops.security.rls import FO03Input as RlsInput
+from app.finops.tickets.service import AuthorizedQueryPlan as TicketPlan
+from app.finops.tickets.service import FO09Input as TicketInput
+from app.finops.tickets.service import TicketService
 
 app = FastAPI(
     title="FinOps 云成本治理智能体",
@@ -71,11 +84,32 @@ def resolve_identity(
     x_tenant_id: str | None,
     x_role: str | None = None,
     x_request_id: str | None = None,
+    x_identity_signature: str | None = None,
+    x_identity_timestamp: str | None = None,
 ) -> IdentityContext:
     if not x_tenant_id:
         raise ForbiddenIdentity("missing trusted X-Tenant-Id header")
+    role = x_role or "analyst"
+    request_id = x_request_id or ""
+    if os.getenv("FINOPS_IDENTITY_MODE", "offline").lower() == "signed":
+        secret = os.getenv("FINOPS_IDENTITY_SECRET", "")
+        if not secret:
+            raise ForbiddenIdentity("signed identity configuration is unavailable")
+        if not request_id or not x_identity_signature or not x_identity_timestamp:
+            raise ForbiddenIdentity("missing identity signature headers")
+        try:
+            signed_at = int(x_identity_timestamp)
+        except ValueError as exc:
+            raise ForbiddenIdentity("invalid identity signature timestamp") from exc
+        max_age = int(os.getenv("FINOPS_IDENTITY_MAX_AGE_SECONDS", "300"))
+        if max_age <= 0 or abs(int(time.time()) - signed_at) > max_age:
+            raise ForbiddenIdentity("identity signature expired")
+        message = f"{x_tenant_id}\n{role}\n{request_id}\n{x_identity_timestamp}"
+        expected = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected, x_identity_signature):
+            raise ForbiddenIdentity("invalid identity signature")
     set_current_tenant(x_tenant_id)
-    return IdentityContext(tenant_id=x_tenant_id, role=x_role or "analyst", request_id=x_request_id or "")
+    return IdentityContext(tenant_id=x_tenant_id, role=role, request_id=request_id)
 
 
 def envelope(result: Any, correlation_id: str, state: str = "ok") -> dict[str, Any]:
@@ -104,8 +138,8 @@ class QueryRequest(BaseModel):
     page_size: int = 100
     cursor: str | None = None
     catalog_version: str = "2024-07"
-    estimated_cost: Decimal = Decimal("0")
-    budget_limit: Decimal = Decimal("10000")
+    estimated_cost: Decimal = Decimal(0)
+    budget_limit: Decimal = Decimal(10000)
     rows: list[dict[str, Any]] = Field(
         default_factory=list,
         description="Deprecated compatibility field; client rows are never used as a data source.",
@@ -133,9 +167,11 @@ def billing_ingestions(
     x_tenant_id: str | None = Header(default=None),
     x_role: str | None = Header(default=None),
     x_request_id: str | None = Header(default=None),
+    x_identity_signature: str | None = Header(default=None),
+    x_identity_timestamp: str | None = Header(default=None),
 ) -> dict[str, Any]:
     try:
-        identity = resolve_identity(x_tenant_id, x_role, x_request_id)
+        identity = resolve_identity(x_tenant_id, x_role, x_request_id, x_identity_signature, x_identity_timestamp)
     except ForbiddenIdentity as exc:
         raise HTTPException(status_code=400, detail={"error": "forbidden_identity", "message": str(exc)})
     kernel = RuntimeKernel(identity)
@@ -181,9 +217,11 @@ def create_query(
     x_tenant_id: str | None = Header(default=None),
     x_role: str | None = Header(default=None),
     x_request_id: str | None = Header(default=None),
+    x_identity_signature: str | None = Header(default=None),
+    x_identity_timestamp: str | None = Header(default=None),
 ) -> dict[str, Any]:
     try:
-        identity = resolve_identity(x_tenant_id, x_role, x_request_id)
+        identity = resolve_identity(x_tenant_id, x_role, x_request_id, x_identity_signature, x_identity_timestamp)
     except ForbiddenIdentity as exc:
         raise HTTPException(status_code=400, detail={"error": "forbidden_identity", "message": str(exc)})
     kernel = RuntimeKernel(identity)
@@ -276,10 +314,12 @@ def query_trace(
     x_tenant_id: str | None = Header(default=None),
     x_role: str | None = Header(default=None),
     x_request_id: str | None = Header(default=None),
+    x_identity_signature: str | None = Header(default=None),
+    x_identity_timestamp: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """返回某查询生命周期的可观测 span 列表（FO-10 可观测性）。"""
     try:
-        identity = resolve_identity(x_tenant_id, x_role, x_request_id)
+        identity = resolve_identity(x_tenant_id, x_role, x_request_id, x_identity_signature, x_identity_timestamp)
     except ForbiddenIdentity as exc:
         raise HTTPException(status_code=400, detail={"error": "forbidden_identity", "message": str(exc)})
     record = repos.query_run.get(query_id)
@@ -303,9 +343,11 @@ def cancel_query(
     x_tenant_id: str | None = Header(default=None),
     x_role: str | None = Header(default=None),
     x_request_id: str | None = Header(default=None),
+    x_identity_signature: str | None = Header(default=None),
+    x_identity_timestamp: str | None = Header(default=None),
 ) -> dict[str, Any]:
     try:
-        identity = resolve_identity(x_tenant_id, x_role, x_request_id)
+        identity = resolve_identity(x_tenant_id, x_role, x_request_id, x_identity_signature, x_identity_timestamp)
     except ForbiddenIdentity as exc:
         raise HTTPException(status_code=400, detail={"error": "forbidden_identity", "message": str(exc)})
     record = repos.query_run.get(query_id)
@@ -314,16 +356,18 @@ def cancel_query(
     if record.payload.get("tenant_id") != identity.tenant_id:
         raise HTTPException(status_code=403, detail={"error": "cross_tenant_denied"})
     # 取消语义：经恢复账本的 cancelled 路径幂等推进，再标记 run。
-    from app.finops.recovery.ledger import FO10Input as RecoverInput, IdentityContext as RecoverContext
-
-    RecoverContext().execute(RecoverInput(items=[{"effect_id": query_id, "status": "cancelled"}]))
     current_status = str(record.payload.get("status", "completed"))
     if current_status != "running":
         raise HTTPException(
             status_code=409,
             detail={"error": "query_not_running", "status": current_status},
         )
+    from app.finops.recovery.ledger import FO10Input as RecoverInput
+    from app.finops.recovery.ledger import IdentityContext as RecoverContext
+
+    RecoverContext().execute(RecoverInput(items=[{"effect_id": query_id, "status": "cancelled"}]))
     record.payload["status"] = "cancelled"
+    repos.query_run.put(record)
     return envelope({"query_id": query_id, "status": "cancelled"}, correlation_id=identity.request_id)
 
 
@@ -339,9 +383,11 @@ def create_ticket(
     x_tenant_id: str | None = Header(default=None),
     x_role: str | None = Header(default=None),
     x_request_id: str | None = Header(default=None),
+    x_identity_signature: str | None = Header(default=None),
+    x_identity_timestamp: str | None = Header(default=None),
 ) -> dict[str, Any]:
     try:
-        identity = resolve_identity(x_tenant_id, x_role, x_request_id)
+        identity = resolve_identity(x_tenant_id, x_role, x_request_id, x_identity_signature, x_identity_timestamp)
     except ForbiddenIdentity as exc:
         raise HTTPException(status_code=400, detail={"error": "forbidden_identity", "message": str(exc)})
     finding_record = repos.anomaly_finding.get(finding_id)

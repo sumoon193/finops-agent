@@ -2,7 +2,12 @@
 
 import pytest
 
-from app.finops.focus.canonical import FO02Input, FO02Result, QueryIntent, normalize_line
+from app.finops.focus.canonical import (
+    FO02Input,
+    FO02Result,
+    QueryIntent,
+    normalize_line,
+)
 
 RAW = {
     "source_id": "aws-billing-2024-01",
