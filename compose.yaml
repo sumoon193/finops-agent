@@ -1,4 +1,21 @@
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8182:8080"
+    volumes:
+      - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '200' <&3"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -21,8 +38,10 @@ services:
       dockerfile: docker/Dockerfile
     environment:
       FINOPS_DATABASE_URL: postgresql://finops:finops_local@postgres:5432/finops
-      FINOPS_IDENTITY_MODE: signed
-      FINOPS_IDENTITY_SECRET: ${FINOPS_IDENTITY_SECRET:-finops_local_identity_only_change_me}
+      FINOPS_IDENTITY_MODE: oidc
+      FINOPS_OIDC_ISSUER_URL: http://localhost:8182/realms/finops
+      FINOPS_OIDC_JWKS_URL: http://keycloak:8080/realms/finops/protocol/openid-connect/certs
+      FINOPS_OIDC_AUDIENCE: finops-web
       FINOPS_AGENT_MODE: ${FINOPS_AGENT_MODE:-offline}
       FINOPS_TICKET_ADAPTER: ${FINOPS_TICKET_ADAPTER:-offline}
       QWEN_API_KEY: ${QWEN_API_KEY:-}
@@ -35,6 +54,21 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_KEYCLOAK_URL: http://localhost:8182
+        VITE_KEYCLOAK_REALM: finops
+        VITE_KEYCLOAK_CLIENT_ID: finops-web
+    ports:
+      - "3102:80"
+    depends_on:
+      app:
+        condition: service_started
 
 volumes:
   finops-postgres-data:

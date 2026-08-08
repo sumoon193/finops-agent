@@ -1,0 +1,1 @@
+{"root":["./src/auth.ts","./src/env.d.ts","./src/main.ts","./src/router.ts","./src/api/client.ts","./src/views/queryworkbench.spec.ts","./src/app.vue","./src/components/datastate.vue","./src/views/dashboardview.vue","./src/views/governanceview.vue","./src/views/ingestionview.vue","./src/views/queryworkbench.vue","./src/views/recoveryview.vue"],"version":"6.0.3"}

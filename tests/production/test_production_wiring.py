@@ -12,8 +12,11 @@ def test_production_compose_declares_postgres_and_healthcheck() -> None:
     assert "postgres:" in compose
     assert "healthcheck:" in compose
     assert "FINOPS_DATABASE_URL" in compose
-    assert "FINOPS_IDENTITY_MODE: signed" in compose
-    assert "FINOPS_IDENTITY_SECRET" in compose
+    assert "FINOPS_IDENTITY_MODE: oidc" in compose
+    assert "FINOPS_OIDC_ISSUER_URL" in compose
+    assert "FINOPS_OIDC_JWKS_URL" in compose
+    assert "FINOPS_OIDC_AUDIENCE" in compose
+    assert "keycloak:" in compose
 
 
 def test_production_repository_uses_postgres_url_and_rls_session_context() -> None:

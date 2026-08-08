@@ -1,0 +1,1 @@
+import{createApp}from'vue';import{createPinia}from'pinia';import App from'./App.vue';import router from'./router';import{initializeAuth}from'./auth';import'./style.css';async function start(){await initializeAuth();createApp(App).use(createPinia()).use(router).mount('#app')}void start()

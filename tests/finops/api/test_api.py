@@ -145,6 +145,38 @@ def test_query_ast_violation_is_rejected_with_stable_code():
     assert response.json()["detail"]["error"] == "ast_violation"
 
 
+def test_query_plans_with_distinct_request_ids_are_not_collapsed_by_idempotency():
+    first = CLIENT.post(
+        "/query-plans",
+        json={"question": "查看本月成本趋势"},
+        headers={**HEADERS, "X-Request-Id": "plan-request-1"},
+    )
+    second = CLIENT.post(
+        "/query-plans",
+        json={"question": "查看本月成本趋势"},
+        headers={**HEADERS, "X-Request-Id": "plan-request-2"},
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    first_id = first.json()["result"]["plan_id"]
+    second_id = second.json()["result"]["plan_id"]
+    assert first_id != second_id
+    first_execution = CLIENT.post(
+        f"/query-plans/{first_id}/execute",
+        json={},
+        headers={**HEADERS, "X-Request-Id": "execute-request-1"},
+    )
+    second_execution = CLIENT.post(
+        f"/query-plans/{second_id}/execute",
+        json={},
+        headers={**HEADERS, "X-Request-Id": "execute-request-2"},
+    )
+    assert first_execution.status_code == 201
+    assert second_execution.status_code == 201
+    assert first_execution.json()["result"]["status"] == "completed"
+    assert second_execution.json()["result"]["status"] == "completed"
+
+
 def test_over_budget_query_rejected_before_execution():
     response = CLIENT.post(
         "/queries",
@@ -240,6 +272,7 @@ def _seed_finding() -> str:
             id=finding_id,
             idempotency_key=repos.idempotency_key("finding", finding_id),
             payload={
+                "tenant_id": "acme",
                 "query_id": "qr-1",
                 "kind": "cost-spike",
                 "severity": "high",

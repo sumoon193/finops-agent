@@ -61,6 +61,7 @@ app/finops/results/            结果缓存和分页
 app/finops/anomaly/            异常归因
 app/finops/tickets/            工单适配器和幂等
 app/finops/recovery/           UNKNOWN 与恢复账本
+frontend/                      Vue 3、TypeScript、Vite 成本治理控制台
 migrations/finops/             PostgreSQL 表和 RLS 迁移
 scripts/finops/                FOCUS 导入、live smoke、回滚
 tests/                         API、契约、安全和恢复测试
@@ -70,7 +71,7 @@ compose.yaml                   PostgreSQL 与 API 集成环境
 ## 环境要求
 
 - Python 3.12+
-- Docker Desktop，用于 PostgreSQL 和 API 集成环境
+- Docker Desktop，用于 PostgreSQL、Keycloak、API 和前端集成环境
 - Qwen 验证需要 `QWEN_API_KEY` 和 `QWEN_CHAT_MODEL`
 - GitHub 工单验证需要 `GITHUB_TOKEN`、仓库名和 Issue 写权限
 
@@ -98,6 +99,7 @@ $env:FINOPS_DATABASE_PATH = ".\runtime\finops.db"
 启动真实 PostgreSQL 和 API：
 
 ```bash
+export KEYCLOAK_ADMIN_PASSWORD='replace-with-a-local-password'
 docker compose -p finops-production-v1 up -d --build --wait
 ```
 
@@ -106,9 +108,11 @@ docker compose -p finops-production-v1 up -d --build --wait
 | 服务 | 地址 |
 | --- | --- |
 | API | http://127.0.0.1:8002 |
+| Web 控制台 | http://127.0.0.1:3102 |
+| Keycloak | http://127.0.0.1:8182 |
 | PostgreSQL | `127.0.0.1:5434` |
 
-Compose 使用 `FINOPS_IDENTITY_MODE=signed`。生产环境必须通过外部 Secret 替换默认身份密钥，并由认证网关生成签名头，不能让公网客户端自报租户。
+Compose 使用 `FINOPS_IDENTITY_MODE=oidc`。后端验证 Keycloak 的签名、issuer、audience、时效、租户声明和角色；浏览器不能通过请求头自报租户。`signed` 仅保留给受信服务间调用。
 
 停止环境：
 
@@ -123,9 +127,11 @@ docker compose -p finops-production-v1 down
 | `FINOPS_BASE_URL` | 空 | live smoke 服务地址 |
 | `FINOPS_DATABASE_URL` | 空 | PostgreSQL 连接串；设置后启用真实仓储 |
 | `FINOPS_DATABASE_PATH` | 空 | SQLite 文件；只用于离线持久化 |
-| `FINOPS_IDENTITY_MODE` | `offline` | `signed` 启用 HMAC 身份校验 |
-| `FINOPS_IDENTITY_SECRET` | 空 | 签名身份密钥，不得提交 |
-| `FINOPS_IDENTITY_MAX_AGE_SECONDS` | `300` | 签名有效期 |
+| `FINOPS_IDENTITY_MODE` | `offline` | 正式环境使用 `oidc`；`signed` 仅用于服务间调用 |
+| `FINOPS_OIDC_ISSUER_URL` | 空 | Keycloak Realm issuer |
+| `FINOPS_OIDC_JWKS_URL` | 空 | 容器内 JWKS 地址 |
+| `FINOPS_OIDC_AUDIENCE` | 空 | Access Token 受众 |
+| `KEYCLOAK_ADMIN_PASSWORD` | 必填 | 本地 Keycloak 管理密码，不得提交 |
 | `QWEN_API_KEY` | 空 | Qwen 密钥，不得提交 |
 | `QWEN_CHAT_MODEL` | `qwen-plus` | 文本模型 |
 | `QWEN_BASE_URL` | DashScope 兼容地址 | 模型 API 地址 |
@@ -138,36 +144,48 @@ docker compose -p finops-production-v1 down
 | --- | --- | --- |
 | `GET` | `/health` | 健康检查 |
 | `POST` | `/billing-ingestions` | 导入账单 |
+| `GET` | `/billing-ingestions` | 查询当前租户导入结果 |
+| `GET` | `/dashboard` | 成本总览 |
+| `POST` | `/query-plans` | 从自然语言生成受控计划 |
+| `POST` | `/query-plans/{plan_id}/execute` | 执行未过期的授权计划 |
+| `GET` | `/queries` | 查询任务列表 |
+| `GET` | `/findings` | 异常列表 |
+| `GET` | `/tickets` | 工单列表 |
+| `GET` | `/recovery-status` | UNKNOWN 对账状态 |
 | `POST` | `/queries` | 创建只读查询 |
 | `GET` | `/queries/{query_id}/trace` | 查询执行溯源 |
 | `DELETE` | `/queries/{query_id}` | 取消运行中的查询 |
 | `POST` | `/findings/{finding_id}/tickets` | 创建异常工单 |
 
-除健康检查外，生产模式请求需要 `X-Tenant-Id`、`X-Role`、`X-Request-Id`，并在 signed 模式额外携带 `X-Identity-Timestamp` 和 `X-Identity-Signature`。
+除健康检查外，OIDC 模式请求需要 `Authorization: Bearer <token>`。租户和角色只从已验签 Token 提取。
 
 ### 导入账单
 
 ```bash
 curl -X POST http://127.0.0.1:8002/billing-ingestions \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-demo" \
-  -H "X-Role: analyst" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "X-Request-Id: request-001" \
   -d '{"watermark":"2026-08-01T00:00:00Z","raw_lines":[{"source_id":"aws-line-001","currency":"USD","unit":"cost","amount":"18.75","watermark":"2026-08-01T00:00:00Z","raw_ref":"focus://billing.csv#2"}]}'
 ```
 
-### 创建只读查询
+### 创建并执行受控查询计划
 
 ```bash
-curl -X POST http://127.0.0.1:8002/queries \
+curl -X POST http://127.0.0.1:8002/query-plans \
   -H "Content-Type: application/json" \
-  -H "X-Tenant-Id: tenant-demo" \
-  -H "X-Role: analyst" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "X-Request-Id: request-002" \
-  -d '{"statement":"SELECT amount, currency FROM billing_line_item","page_size":50,"catalog_version":"2024-07","estimated_cost":"2.50","budget_limit":"100.00","allowed_resources":["billing_line_item"]}'
+  -d '{"question":"查看本月成本趋势","estimated_cost":"2.50","budget_limit":"100.00"}'
+
+curl -X POST http://127.0.0.1:8002/query-plans/${PLAN_ID}/execute \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  -H "X-Request-Id: request-003" \
+  -d '{"page_size":50}'
 ```
 
-`rows` 即使存在于请求中也不会作为数据源。返回值包含 `query_id`、分页游标和 provenance。
+自然语言只能选择服务端维护的类型化查询模板，模型不能提交任意 SQL。兼容接口中的 `rows` 即使存在也不会作为数据源。
 
 ## 请求示例与返回结果
 
@@ -189,8 +207,9 @@ ruff check app tests scripts
 
 ```powershell
 $env:FINOPS_BASE_URL = "http://127.0.0.1:8002"
-$env:FINOPS_IDENTITY_MODE = "signed"
-$env:FINOPS_IDENTITY_SECRET = "仅用于本机测试的随机值"
+$env:FINOPS_IDENTITY_MODE = "oidc"
+$env:FINOPS_SMOKE_ACCESS_TOKEN = "第一个测试租户的短期 Access Token"
+$env:FINOPS_SMOKE_OTHER_ACCESS_TOKEN = "第二个测试租户的短期 Access Token"
 python .\scripts\finops\live_smoke.py --component health
 python .\scripts\finops\live_smoke.py --component database
 ```
@@ -203,15 +222,25 @@ python .\scripts\finops\live_smoke.py --component model
 
 `database` smoke 会写入两个租户、查询真实 PostgreSQL，并确认客户端伪造 `rows` 不会出现在结果中。退出码 `0` 表示通过，`1` 表示连接后校验失败，`2` 表示缺少服务、密钥或授权。账单来源和 GitHub Issues 仍需各自独立 smoke。
 
+浏览器 E2E 需要在 `finops` Realm 创建具有 `finops-operator` 角色的本地用户：
+
+为两个 smoke 用户分别设置不同的 `tenant_id` 属性，才能验证 PostgreSQL RLS 和跨租户拒绝。
+
+```powershell
+$env:FINOPS_E2E_USERNAME = "本地测试用户名"
+$env:FINOPS_E2E_PASSWORD = "本地测试密码"
+npm --prefix frontend run test:e2e:live
+```
+
 ## 常见问题与故障排查
 
-### missing trusted X-Tenant-Id
+### missing bearer token
 
-请求缺少租户头。生产环境应由认证网关注入，不能直接信任浏览器传来的租户值。
+OIDC 模式请求缺少 Access Token。确认从 `finops` Realm 登录，并通过 `Authorization: Bearer <token>` 发送短期令牌。
 
-### signed identity 校验失败
+### OIDC 校验失败
 
-检查签名使用的租户、角色、请求 ID 和时间戳是否与服务端完全一致，时间戳不能超过 `FINOPS_IDENTITY_MAX_AGE_SECONDS`。
+检查 issuer、JWKS、audience、令牌时效、`tenant_id` 和 `finops-*` 角色。浏览器提交的租户头不会覆盖 Token 声明。
 
 ### 查询返回 AST violation
 
@@ -231,7 +260,7 @@ python .\scripts\finops\live_smoke.py --component model
 - 生产 PostgreSQL 必须启用并强制执行 RLS，连接角色不能绕过策略。
 - 查询 AST、预算、分页和结果 provenance 由服务端执行。
 - 模型不能绕过 AST 直接执行 SQL，客户端 `rows` 不能替代账单仓储。
-- 当前缺少完整业务前端、三轮评测、压测、故障注入和公网稳定性观察，不能标记为 deployment-ready。
+- 当前仍缺少三轮评测、压测、故障注入和公网稳定性观察，不能标记为 deployment-ready。
 
 ## License
 

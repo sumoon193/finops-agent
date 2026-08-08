@@ -1,0 +1,46 @@
+{
+  "realm": "finops",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [{
+      "providerId": "declarative-user-profile",
+      "subComponents": {},
+      "config": {
+        "kc.user.profile.config": [
+          "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"tenant_id\",\"displayName\":\"Tenant ID\",\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":false}],\"unmanagedAttributePolicy\":\"ENABLED\"}"
+        ]
+      }
+    }]
+  },
+  "roles": { "realm": [
+    { "name": "finops-analyst" },
+    { "name": "finops-operator" },
+    { "name": "finops-admin" }
+  ] },
+  "clients": [{
+    "clientId": "finops-web",
+    "name": "FinOps Web",
+    "enabled": true,
+    "publicClient": true,
+    "standardFlowEnabled": true,
+    "directAccessGrantsEnabled": false,
+    "redirectUris": ["http://127.0.0.1:3102/*", "http://localhost:3102/*"],
+    "webOrigins": ["http://127.0.0.1:3102", "http://localhost:3102"],
+    "attributes": { "pkce.code.challenge.method": "S256" },
+    "protocolMappers": [{
+      "name": "tenant-id",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "consentRequired": false,
+      "config": { "user.attribute": "tenant_id", "claim.name": "tenant_id", "jsonType.label": "String", "access.token.claim": "true", "id.token.claim": "true" }
+    }, {
+      "name": "finops-web-audience",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": { "included.client.audience": "finops-web", "access.token.claim": "true" }
+    }]
+  }]
+}

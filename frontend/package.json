@@ -1,0 +1,33 @@
+{
+  "name": "finops-agent-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "test": "vitest --run --configLoader native --pool=vmThreads --maxWorkers=1",
+    "test:e2e:live": "playwright test"
+  },
+  "dependencies": {
+    "keycloak-js": "^26.2.1",
+    "lucide-vue-next": "^0.468.0",
+    "papaparse": "^5.5.3",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.34",
+    "vue-router": "^4.6.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^24.12.3",
+    "@types/papaparse": "^5.3.16",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.9.1",
+    "jsdom": "^27.4.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12",
+    "vitest": "^4.0.18",
+    "vue-tsc": "^3.2.8"
+  }
+}

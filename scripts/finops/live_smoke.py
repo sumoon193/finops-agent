@@ -76,9 +76,14 @@ def _database_smoke() -> int:
     source_id = "live-smoke-" + uuid.uuid4().hex
     other_source_id = source_id
     other_tenant = f"{tenant}-other"
-    headers = _identity_headers(tenant, "analyst", "finops-database-smoke")
+    headers = _identity_headers(
+        tenant,
+        "analyst",
+        "finops-database-smoke",
+        access_token_env="FINOPS_SMOKE_ACCESS_TOKEN",
+    )
     if headers is None:
-        print("BLOCKED: set FINOPS_IDENTITY_SECRET for signed identity mode")
+        print("BLOCKED: configure FinOps smoke identity credentials")
         return 2
     ingestion = {
         "watermark": "2026-08-06T00:00:00Z",
@@ -91,9 +96,14 @@ def _database_smoke() -> int:
             "raw_ref": "focus://live-smoke",
         }],
     }
-    other_headers = _identity_headers(other_tenant, "analyst", "finops-database-smoke-other")
+    other_headers = _identity_headers(
+        other_tenant,
+        "analyst",
+        "finops-database-smoke-other",
+        access_token_env="FINOPS_SMOKE_OTHER_ACCESS_TOKEN",
+    )
     if other_headers is None:
-        print("BLOCKED: set FINOPS_IDENTITY_SECRET for signed identity mode")
+        print("BLOCKED: configure second-tenant smoke identity credentials")
         return 2
     other_ingestion = {
         "watermark": "2026-08-06T00:00:00Z",
@@ -152,14 +162,30 @@ def _request_json(url: str, payload: dict, headers: dict[str, str]) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def _identity_headers(tenant: str, role: str, request_id: str) -> dict[str, str] | None:
+def _identity_headers(
+    tenant: str,
+    role: str,
+    request_id: str,
+    *,
+    access_token_env: str = "FINOPS_SMOKE_ACCESS_TOKEN",
+) -> dict[str, str] | None:
     headers = {
         "Content-Type": "application/json",
         "X-Tenant-Id": tenant,
         "X-Role": role,
         "X-Request-Id": request_id,
     }
-    if os.getenv("FINOPS_IDENTITY_MODE", "offline").lower() != "signed":
+    identity_mode = os.getenv("FINOPS_IDENTITY_MODE", "offline").lower()
+    if identity_mode == "oidc":
+        access_token = os.getenv(access_token_env, "").strip()
+        if not access_token:
+            return None
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}",
+            "X-Request-Id": request_id,
+        }
+    if identity_mode != "signed":
         return headers
     secret = os.getenv("FINOPS_IDENTITY_SECRET", "")
     if not secret:

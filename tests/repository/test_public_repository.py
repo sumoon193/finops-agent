@@ -49,8 +49,9 @@ def test_readme_is_public_facing_and_portable() -> None:
         "app.finops.api:app",
         "FINOPS_DATABASE_PATH",
         "POST` | `/billing-ingestions",
-        "POST` | `/queries",
-        "X-Tenant-Id",
+        "POST` | `/query-plans",
+        "Authorization: Bearer",
+        "FINOPS_OIDC_ISSUER_URL",
         "scripts\\finops\\live_smoke.py",
         "MIT",
     ):
